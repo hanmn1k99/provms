@@ -166,8 +166,23 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
     // Auto size columns a bit
     ws['!cols'] = [{wch: 25}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 20}];
     
+    // Sheet thứ 2: Hướng dẫn nhập liệu
+    const wsInstructions = XLSX.utils.aoa_to_sheet([
+      ['HƯỚNG DẪN NHẬP DỮ LIỆU CAMERA'],
+      [],
+      ['CHI TIẾT CỘT "Chế độ (1-6)":', 'Ý NGHĨA'],
+      ['Nhập số 1', 'Chế độ Gốc (Nhẹ nhất, Yêu cầu Camera phải xuất chuẩn H.264)'],
+      ['Nhập số 2', 'Chế độ Hybrid (KHUYÊN DÙNG - Tự động tận dụng mọi phần cứng có sẵn)'],
+      ['Nhập số 3', 'Chế độ Phần mềm (Chỉ dùng CPU - Dành cho máy chủ cấu hình thấp)'],
+      ['Nhập số 4', 'Siêu tốc Intel (Dành riêng cho máy có Card Onboard Intel Quick Sync)'],
+      ['Nhập số 5', 'Siêu tốc NVIDIA (Chỉ dùng khi máy đã bẻ khóa giới hạn NVENC)'],
+      ['Nhập số 6', 'Siêu tốc AMD (Dành riêng cho máy chủ chạy chip/card AMD AMF)']
+    ]);
+    wsInstructions['!cols'] = [{wch: 25}, {wch: 80}];
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Cameras');
+    XLSX.utils.book_append_sheet(wb, ws, 'Danh_Sach_Camera'); // Sheet 1 (Code chỉ đọc sheet này)
+    XLSX.utils.book_append_sheet(wb, wsInstructions, 'Huong_Dan_Nhap_Lieu'); // Sheet 2 (Chỉ để người đọc)
     XLSX.writeFile(wb, 'import_template.xlsx');
   };
 
