@@ -29,7 +29,7 @@ ProVMS Enterprise là hệ thống quản lý và giám sát Camera tập trung 
 ### 1. Đăng nhập & Khôi phục
 - Lần đầu mở app, hệ thống sẽ yêu cầu thiết lập tài khoản Admin.
 - Hệ thống hỗ trợ Auto-login ở các lần sau.
-- Nếu lỡ quên mật khẩu, nhập mã khôi phục bí mật: `Hannguyen@113` để ép reset mật khẩu Admin về mặc định (`admin`).
+- Hỗ trợ cơ chế khôi phục tài khoản Admin an toàn (vui lòng liên hệ nhà phát triển để được hỗ trợ).
 
 ### 2. Quản lý Camera (Nhập hàng loạt)
 - Vào **Cài đặt Hệ thống** > **Quản lý Camera**.
