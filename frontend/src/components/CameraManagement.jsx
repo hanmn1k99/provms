@@ -155,16 +155,16 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
   const handleDownloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([{
       'Tên Camera': 'Camera Cổng chính',
-      'IP/Tên miền': '192.168.1.10',
+      'IP': '192.168.1.10',
       'Kênh': 1,
       'Tài khoản': 'admin',
       'Mật khẩu': 'password123',
-      'Hãng (Hikvision/Dahua)': 'Hikvision',
-      'Giải mã (1=Copy, 2=Hybrid, 3=CPU, 4=Intel, 5=NVIDIA, 6=AMD)': 1
+      'Hãng': 'Hikvision',
+      'Chế độ (1-6)': 2
     }]);
     
     // Auto size columns a bit
-    ws['!cols'] = [{wch: 25}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 45}];
+    ws['!cols'] = [{wch: 25}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 20}];
     
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cameras');
@@ -200,17 +200,18 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
 
         const bulkCameras = data.map(row => {
           const name = row['Tên Camera'] || '';
-          const ip = row['IP/Tên miền'] || '';
+          const ip = row['IP'] || row['IP/Tên miền'] || '';
           const ch = row['Kênh'] || '1';
           const user = row['Tài khoản'] || '';
           const pass = row['Mật khẩu'] || '';
-          const brand = row['Hãng (Hikvision/Dahua)'] || 'Hikvision';
+          const brand = row['Hãng'] || row['Hãng (Hikvision/Dahua)'] || 'Hikvision';
           
-          const rawTranscode = row['Giải mã (1=Gốc H.264, 2=Tự động H.265, 3=CPU)'] 
-                            || row['Giải mã (1=Copy, 2=CPU, 3=NVIDIA, 4=Intel, 5=AMD, 6=Hybrid)'] 
-                            || row['Giải mã (1=Copy, 2=CPU, 3=NVIDIA, 4=Intel, 5=AMD)'] 
-                            || row['Giải mã (1=Copy, 2=CPU, 3=GPU)'];
-          const transcodeMode = transcodeMap[rawTranscode] || 'copy';
+          // Quét thông minh: Lấy cột nào có chữ "Giải mã" hoặc "Chế độ"
+          const transcodeKey = Object.keys(row).find(k => 
+            k.toLowerCase().includes('giải mã') || k.toLowerCase().includes('chế độ')
+          );
+          const rawTranscode = transcodeKey ? row[transcodeKey] : 2; // Mặc định là 2 (Hybrid)
+          const transcodeMode = transcodeMap[rawTranscode] || 'auto_h265';
 
           let mainStream = '';
           let subStream = '';
