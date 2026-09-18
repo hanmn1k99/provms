@@ -168,7 +168,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
     
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cameras');
-    XLSX.writeFile(wb, 'Mau_Nhap_Camera.xlsx');
+    XLSX.writeFile(wb, 'import_template.xlsx');
   };
 
   const handleFileUpload = (e) => {
