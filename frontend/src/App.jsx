@@ -28,7 +28,8 @@ function App() {
   const [setupFullName, setSetupFullName] = useState('');
   const [systemReady, setSystemReady] = useState(false);
   const [toast, setToast] = useState(null); // { message, type: 'success'|'error' }
-
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState('');
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -323,7 +324,14 @@ function App() {
               <h1 className="login-title">ProVMS Enterprise</h1>
               <p className="login-subtitle">Hệ thống quản lý Camera tập trung<br /><span>by minhhan.net</span></p>
 
-              <form className="login-form" onSubmit={handleLogin}>
+              <form className="login-form" onSubmit={(e) => {
+                e.preventDefault();
+                if (showRecovery) {
+                  document.getElementById('btn-recovery').click();
+                } else {
+                  handleLogin(e);
+                }
+              }}>
                 <div className="login-field">
                   <label htmlFor="username">Tên đăng nhập</label>
                   <input id="username" type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Nhập tên đăng nhập" required autoComplete="off" />
@@ -333,30 +341,49 @@ function App() {
                   <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Nhập mật khẩu" required autoComplete="new-password" />
                 </div>
                 <div style={{ textAlign: 'right', marginBottom: '15px' }}>
-                  <a href="#" onClick={async (e) => {
+                  <a href="#" onClick={(e) => {
                     e.preventDefault();
-                    const key = window.prompt('Nhập mã khôi phục để thiết lập lại mật khẩu:');
-                    if (!key) return;
-                    try {
-                      const res = await axios.post(`http://${window.location.hostname}:3000/api/reset-password`, { recoveryKey: key });
-                      if (res.data.success) {
-                        showToast(res.data.message, 'success');
-                      }
-                    } catch (err) {
-                      showToast(err.response?.data?.message || 'Lỗi kết nối', 'error');
-                    }
+                    setShowRecovery(!showRecovery);
+                    setError('');
                   }} style={{ color: 'var(--accent)', fontSize: '0.85rem', textDecoration: 'none' }}>
-                    Quên mật khẩu?
+                    {showRecovery ? 'Quay lại Đăng nhập' : 'Quên mật khẩu?'}
                   </a>
                 </div>
+                {showRecovery && (
+                  <div className="login-field" style={{ animation: 'slideIn 0.3s' }}>
+                    <label htmlFor="recoveryKey">Mã khôi phục bí mật</label>
+                    <input id="recoveryKey" type="password" value={recoveryKey} onChange={e => setRecoveryKey(e.target.value)} placeholder="Nhập mã khôi phục" autoComplete="off" />
+                  </div>
+                )}
                 {error && <div className="login-error">{error}</div>}
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button type="button" onClick={() => setActiveTab('grid')} style={{ flex: 1, padding: '12px', background: '#334155', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                     Quay lại
                   </button>
-                  <button type="submit" className="login-btn" disabled={loading} style={{ flex: 2 }}>
-                    {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-                  </button>
+                  {showRecovery ? (
+                    <button id="btn-recovery" type="button" className="login-btn" disabled={loading} style={{ flex: 2 }} onClick={async () => {
+                      if (!recoveryKey) return;
+                      setLoading(true);
+                      try {
+                        const res = await axios.post(`http://${window.location.hostname}:3000/api/reset-password`, { recoveryKey });
+                        if (res.data.success) {
+                          showToast(res.data.message, 'success');
+                          setShowRecovery(false);
+                          setRecoveryKey('');
+                        }
+                      } catch (err) {
+                        setError(err.response?.data?.message || 'Mã khôi phục không hợp lệ');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}>
+                      {loading ? 'Đang xử lý...' : 'Xác nhận khôi phục'}
+                    </button>
+                  ) : (
+                    <button type="submit" className="login-btn" disabled={loading} style={{ flex: 2 }}>
+                      {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
