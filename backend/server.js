@@ -335,8 +335,8 @@ app.use((req, res) => {
 
 // Chạy server API
 const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Backend API running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend API running on http://0.0.0.0:${PORT}`);
 });
 
 // Khởi tạo Node Media Server để chạy FLV streaming (Relay từ RTSP sang HTTP-FLV)

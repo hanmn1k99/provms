@@ -386,6 +386,10 @@ function App() {
                   <option value={4} style={{ background: '#0f1629', color: '#e2e8f0' }}>4 Camera (2x2)</option>
                   <option value={9} style={{ background: '#0f1629', color: '#e2e8f0' }}>9 Camera (3x3)</option>
                   <option value={16} style={{ background: '#0f1629', color: '#e2e8f0' }}>16 Camera (4x4)</option>
+                  <option value={25} style={{ background: '#0f1629', color: '#e2e8f0' }}>25 Camera (5x5)</option>
+                  <option value={32} style={{ background: '#0f1629', color: '#e2e8f0' }}>32 Camera (8x4)</option>
+                  <option value={36} style={{ background: '#0f1629', color: '#e2e8f0' }}>36 Camera (6x6)</option>
+                  <option value={64} style={{ background: '#0f1629', color: '#e2e8f0' }}>64 Camera (8x8)</option>
                 </select>
               </div>
             </div>
@@ -395,8 +399,8 @@ function App() {
                 display: 'grid', 
                 gap: '15px', 
                 height: '100%',
-                gridTemplateColumns: `repeat(${Math.ceil(Math.sqrt(gridSize))}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${Math.ceil(Math.sqrt(gridSize))}, minmax(0, 1fr))`
+                gridTemplateColumns: `repeat(${gridSize === 32 ? 8 : Math.ceil(Math.sqrt(gridSize))}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${gridSize === 32 ? 4 : Math.ceil(Math.sqrt(gridSize))}, minmax(0, 1fr))`
               }}>
                 {Array.from({ length: gridSize }).map((_, i) => (
                   <div 
