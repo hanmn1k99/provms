@@ -160,11 +160,11 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
       'Tài khoản': 'admin',
       'Mật khẩu': 'password123',
       'Hãng (Hikvision/Dahua)': 'Hikvision',
-      'Giải mã (1=Copy, 2=CPU, 3=GPU)': 1
+      'Giải mã (1=Gốc H.264, 2=Tự động H.265, 3=CPU)': 1
     }]);
     
     // Auto size columns a bit
-    ws['!cols'] = [{wch: 25}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 35}];
+    ws['!cols'] = [{wch: 25}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 45}];
     
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cameras');
@@ -189,7 +189,13 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
           return;
         }
 
-        const transcodeMap = { 1: 'copy', 2: 'cpu', 3: 'gpu' };
+        const transcodeMap = { 
+          1: 'copy', 
+          2: 'auto_h265', 
+          3: 'cpu',
+          // Giữ lại các key cũ để tương thích ngược nếu người dùng xài file excel cũ
+          4: 'auto_h265', 5: 'auto_h265', 6: 'auto_h265' 
+        };
 
         const bulkCameras = data.map(row => {
           const name = row['Tên Camera'] || '';
@@ -199,7 +205,10 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
           const pass = row['Mật khẩu'] || '';
           const brand = row['Hãng (Hikvision/Dahua)'] || 'Hikvision';
           
-          const rawTranscode = row['Giải mã (1=Copy, 2=CPU, 3=GPU)'];
+          const rawTranscode = row['Giải mã (1=Gốc H.264, 2=Tự động H.265, 3=CPU)'] 
+                            || row['Giải mã (1=Copy, 2=CPU, 3=NVIDIA, 4=Intel, 5=AMD, 6=Hybrid)'] 
+                            || row['Giải mã (1=Copy, 2=CPU, 3=NVIDIA, 4=Intel, 5=AMD)'] 
+                            || row['Giải mã (1=Copy, 2=CPU, 3=GPU)'];
           const transcodeMode = transcodeMap[rawTranscode] || 'copy';
 
           let mainStream = '';
@@ -409,11 +418,11 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
               </div>
 
               <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chế độ Xử lý Video (Hỗ trợ giải mã H.265)</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chế độ Xử lý Video (Chỉ cần chọn 1 trong 3)</label>
                 <select className="input" value={formData.TranscodeMode} onChange={e => setFormData({...formData, TranscodeMode: e.target.value})}>
-                  <option value="copy">Chế độ Gốc (Direct Play - Yêu cầu Camera H.264 - Không tốn CPU)</option>
-                  <option value="cpu">Giải mã CPU (Hỗ trợ mọi định dạng - Tốn CPU Server)</option>
-                  <option value="gpu">Giải mã GPU (Chỉ dùng khi Server có VGA NVIDIA)</option>
+                  <option value="copy">1. Chế độ Gốc (Mượt nhất - Yêu cầu Camera chuẩn H.264)</option>
+                  <option value="auto_h265">2. Chế độ H.265 (Tự động tận dụng mọi loại GPU: NVIDIA/Intel/AMD)</option>
+                  <option value="cpu">3. Chế độ Phần mềm (Chỉ dùng CPU - Dành cho máy không có Card rời)</option>
                 </select>
               </div>
 
