@@ -70,7 +70,9 @@ function App() {
           }
         } catch (e) {
           // Auto-login thất bại → hiện màn hình đăng nhập bình thường
-          setActiveTab('login');
+          if (!window.location.search.includes('mode=viewer')) {
+            setActiveTab('login');
+          }
         }
       }
       setSystemReady(true);
@@ -244,7 +246,7 @@ function App() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <button 
-            onClick={() => window.open(window.location.href, '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no')}
+            onClick={() => window.open(window.location.origin + '?mode=viewer', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no')}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '8px 15px', borderRadius: '6px', cursor: 'default', fontSize: '0.85rem', fontWeight: 600 }}
           >
             <MonitorUp size={16} />
