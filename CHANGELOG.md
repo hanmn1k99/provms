@@ -2,9 +2,14 @@
 
 Tất cả những thay đổi nổi bật của dự án **ProVMS Enterprise** sẽ được ghi chép tại đây.
 
-## [2.4.0] - 2026-09-18
+## [2.4.5] - 2026-09-18
 ### Thêm mới (Added)
-- **Khởi động cùng Windows:** Thêm tab *Cấu hình Hệ thống* (System Settings) cho phép người dùng tự do bật/tắt tính năng khởi động phần mềm cùng máy tính thông qua IPC hook vào Windows Registry.
+- **Khởi động cùng Windows:** Thêm tab *Cấu hình Hệ thống* (System Settings) cho phép người dùng tự do bật/tắt tính năng khởi động phần mềm cùng máy tính thông qua IPC hook trực tiếp vào Windows Registry.
+- **Desktop-Native Responsive UI:** Thiết kế lại cơ chế co giãn giao diện. Các thanh công cụ và Sidebar (Cài đặt) được khóa kích thước chặt chẽ (`flex-shrink: 0`), trong khi lưới Camera tự động lấp đầy phần không gian còn lại. Không còn hiện tượng vỡ, rớt dòng hay bị bóp méo khi thu phóng cửa sổ.
+
+### Sửa đổi (Fixed)
+- Sửa lỗi nút gạt Khởi động cùng Windows không hoạt động (lỗi thiếu đóng gói file `preload.js` của Electron).
+- Tối ưu kích thước Sidebar Cài đặt (thu nhỏ xuống 200px).
 
 ## [2.3.0] - 2026-09-18
 ### Thêm mới (Added)

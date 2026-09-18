@@ -1,13 +1,17 @@
 # ProVMS Enterprise 🎥
 
-![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.4.5-blue.svg)
 ![Electron](https://img.shields.io/badge/Electron-191970?logo=electron&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-007808?logo=ffmpeg&logoColor=white)
 
 **ProVMS Enterprise** là hệ thống phần mềm Quản lý và Giám sát Camera tập trung (VMS) chuyên nghiệp. Bằng việc áp dụng các công nghệ xử lý luồng Video tiên tiến nhất và cơ chế phần cứng tối đa, ProVMS mang lại hiệu năng giám sát khổng lồ trên những hệ thống máy tính phổ thông.
 
-## 🔥 Tính năng Nổi bật (Phiên bản 2.3.0)
+## 🔥 Tính năng Nổi bật (Phiên bản 2.4.5)
+
+### 💻 Trải nghiệm Native Desktop App
+- Giao diện được thiết kế độc quyền theo quy chuẩn Ứng dụng Desktop (Desktop-Class Responsiveness): Thanh công cụ và Menu Cài đặt được neo chặt (rigid), không bao giờ bị bóp méo hay vỡ khung khi thu phóng cửa sổ.
+- Tích hợp tính năng **Khởi động cùng Windows** - tự động ghi Registry qua cầu nối IPC. Phần mềm tự động mở và chạy ngầm lưới Camera khi cắm điện.
 
 ### 🚀 Siêu Tăng tốc Phần cứng (Zero-Copy Hardware Acceleration)
 - Ép toàn bộ phần cứng tham gia xử lý Video. Hỗ trợ **Zero-copy** (giải mã và nén 100% bên trong VRAM), giúp CPU gần như không phải hoạt động (tải 1-2%).
