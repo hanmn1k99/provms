@@ -170,11 +170,13 @@ function App() {
 
   const [expandedCamera, setExpandedCamera] = useState(null);
   const [appScale, setAppScale] = useState(1);
+  const [logicalHeight, setLogicalHeight] = useState(1080);
 
   useEffect(() => {
     const handleResize = () => {
-      const ratio = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      const ratio = window.innerWidth / 1920;
       setAppScale(ratio);
+      setLogicalHeight(window.innerHeight / ratio);
     };
     window.addEventListener('resize', handleResize);
     handleResize();
@@ -182,8 +184,8 @@ function App() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="admin-root" style={{ width: '1920px', height: '1080px', flexShrink: 0, transform: `scale(${appScale})`, transformOrigin: 'center center', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)', fontFamily: '"Inter", sans-serif', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000' }}>
+      <div className="admin-root" style={{ width: '1920px', height: `${logicalHeight}px`, transform: `scale(${appScale})`, transformOrigin: 'top left', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)', fontFamily: '"Inter", sans-serif', overflow: 'hidden', position: 'relative' }}>
         
       {/* Loading screen - chờ kiểm tra hệ thống xong */}
       {!systemReady && (
