@@ -146,6 +146,38 @@ function App() {
     localStorage.removeItem('currentUser');
   };
 
+  // Auto-logout sau 30 phút không hoạt động
+  useEffect(() => {
+    let timeoutId;
+    
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      if (isLoggedIn) {
+        // 30 phút = 1800000 ms
+        timeoutId = setTimeout(() => {
+          handleLogout();
+          showToast('Đã tự động đăng xuất do không hoạt động!', 'error');
+        }, 1800000);
+      }
+    };
+
+    if (isLoggedIn) {
+      resetTimer();
+      window.addEventListener('mousemove', resetTimer);
+      window.addEventListener('keydown', resetTimer);
+      window.addEventListener('mousedown', resetTimer);
+      window.addEventListener('scroll', resetTimer);
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+      window.removeEventListener('mousedown', resetTimer);
+      window.removeEventListener('scroll', resetTimer);
+    };
+  }, [isLoggedIn]);
+
   const [expandedCamera, setExpandedCamera] = useState(null);
 
   return (
