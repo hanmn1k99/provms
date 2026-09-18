@@ -218,7 +218,16 @@ app.post('/api/stream/start', (req, res) => {
         '-f flv'
     ];
 
-    if (transcodeMode === 'auto_h265' || transcodeMode === 'gpu_hybrid' || transcodeMode === 'gpu_nvidia' || transcodeMode === 'gpu_intel' || transcodeMode === 'gpu_amd' || transcodeMode === 'gpu') {
+    if (transcodeMode === 'gpu_intel') {
+        inputOptions.unshift('-hwaccel', 'qsv');
+        outputOptions.push('-c:v h264_qsv', '-preset veryfast', '-g 30', '-bf 0');
+    } else if (transcodeMode === 'gpu_nvidia') {
+        inputOptions.unshift('-hwaccel', 'cuda');
+        outputOptions.push('-c:v h264_nvenc', '-preset p1', '-tune ll', '-g 30', '-bf 0');
+    } else if (transcodeMode === 'gpu_amd') {
+        inputOptions.unshift('-hwaccel', 'd3d11va');
+        outputOptions.push('-c:v h264_amf', '-usage lowlatency', '-g 30', '-bf 0');
+    } else if (transcodeMode === 'auto_h265' || transcodeMode === 'gpu_hybrid') {
         // Tự động dùng phần cứng để giải mã luồng H.265 (NVDEC/DXVA2/QSV), sau đó nén nhẹ lại H.264 qua CPU
         // Phương pháp này lách được giới hạn 8 luồng của NVIDIA và bao xài trên mọi loại card
         inputOptions.unshift('-hwaccel', 'auto'); 

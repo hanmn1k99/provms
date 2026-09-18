@@ -160,7 +160,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
       'Tài khoản': 'admin',
       'Mật khẩu': 'password123',
       'Hãng (Hikvision/Dahua)': 'Hikvision',
-      'Giải mã (1=Gốc H.264, 2=Tự động H.265, 3=CPU)': 1
+      'Giải mã (1=Copy, 2=Hybrid, 3=CPU, 4=Intel, 5=NVIDIA, 6=AMD)': 1
     }]);
     
     // Auto size columns a bit
@@ -193,8 +193,9 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
           1: 'copy', 
           2: 'auto_h265', 
           3: 'cpu',
-          // Giữ lại các key cũ để tương thích ngược nếu người dùng xài file excel cũ
-          4: 'auto_h265', 5: 'auto_h265', 6: 'auto_h265' 
+          4: 'gpu_intel',
+          5: 'gpu_nvidia',
+          6: 'gpu_amd'
         };
 
         const bulkCameras = data.map(row => {
@@ -418,11 +419,14 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
               </div>
 
               <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chế độ Xử lý Video (Chỉ cần chọn 1 trong 3)</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chế độ Xử lý Video (Chỉ cần chọn 1 trong 6)</label>
                 <select className="input" value={formData.TranscodeMode} onChange={e => setFormData({...formData, TranscodeMode: e.target.value})}>
                   <option value="copy">1. Chế độ Gốc (Mượt nhất - Yêu cầu Camera chuẩn H.264)</option>
-                  <option value="auto_h265">2. Chế độ H.265 (Tự động tận dụng mọi loại GPU: NVIDIA/Intel/AMD)</option>
-                  <option value="cpu">3. Chế độ Phần mềm (Chỉ dùng CPU - Dành cho máy không có Card rời)</option>
+                  <option value="auto_h265">2. Chế độ H.265 (Tự động Hybrid - Giải mã GPU + Nén CPU)</option>
+                  <option value="cpu">3. Chế độ Phần mềm (Chỉ dùng CPU - Dành cho máy không card)</option>
+                  <option value="gpu_intel">4. Siêu tốc iGPU Intel (Dùng Quick Sync QSV không giới hạn)</option>
+                  <option value="gpu_nvidia">5. Siêu tốc NVIDIA (Chỉ dùng cho dòng card đã patch / Quadro)</option>
+                  <option value="gpu_amd">6. Siêu tốc AMD (Dùng AMF)</option>
                 </select>
               </div>
 
