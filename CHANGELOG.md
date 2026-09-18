@@ -1,0 +1,30 @@
+# Changelog 📝
+
+Tất cả những thay đổi nổi bật của dự án **ProVMS Enterprise** sẽ được ghi chép tại đây.
+
+## [2.4.0] - 2026-09-18
+### Thêm mới (Added)
+- **Khởi động cùng Windows:** Thêm tab *Cấu hình Hệ thống* (System Settings) cho phép người dùng tự do bật/tắt tính năng khởi động phần mềm cùng máy tính thông qua IPC hook vào Windows Registry.
+
+## [2.3.0] - 2026-09-18
+### Thêm mới (Added)
+- **Zero-Copy Hardware Acceleration:** Tích hợp bộ mã hóa/giải mã phần cứng chuyên sâu không copy qua lại VRAM-RAM. Hỗ trợ Intel QSV, NVIDIA NVENC và AMD AMF, giảm tải CPU xuống tiệm cận 0% khi gánh 64 camera.
+- **Multi-Monitor Kiosk Mode:** Thêm nút *Mở màn hình phụ*. Tự động mở các cửa sổ mới ở chế độ Guest Viewer phục vụ giám sát 24/7 mà không lo bị văng đăng nhập.
+- **Smart Excel Import:** Cải tiến tính năng Nhập hàng loạt qua Excel với file mẫu mới có 2 Sheet (1 hướng dẫn, 1 dữ liệu), tự động phân tích và sửa lỗi định dạng.
+
+### Sửa đổi (Changed)
+- **Guest View Default:** Thay đổi triết lý khởi động. Khi mở ứng dụng, phần mềm luôn vào thẳng màn hình Giám sát Lưới thay vì chặn lại ở màn hình Đăng nhập Admin.
+- Đếm STT (Số thứ tự) thông minh trên giao diện, tách biệt hoàn toàn với ID của Database để không bị nhảy số khi xóa Camera.
+
+## [2.2.0] - 2026-09-17
+### Thêm mới (Added)
+- Chế độ tự động đăng xuất Admin (Auto-Logout) sau 30 phút không tương tác, tự động thu hồi quyền bảo vệ hệ thống (nhưng vẫn duy trì xem cam).
+- Cập nhật Layout hiển thị trên màn hình 4K siêu lớn: Lưới 25, 32 (8x4), 36 và 64 Camera.
+- Ẩn danh tiến trình FFmpeg dưới Task Manager thành `provms-worker.exe`.
+- Cập nhật giao diện Khôi phục Mật khẩu ẩn (Master Key) liền mạch không qua hàm Prompt của Windows.
+
+## [2.1.0] - Các phiên bản trước
+### Khởi tạo (Init)
+- Xây dựng kiến trúc React.js + Vite kết hợp Electron.
+- Xử lý luồng RTMP/FLV qua WebSockets với Node-Media-Server cho độ trễ tiệm cận 0.
+- Đóng gói Database SQLite độc lập và an toàn trong `%APPDATA%`.
