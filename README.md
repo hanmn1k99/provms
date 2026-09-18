@@ -1,6 +1,6 @@
 # ProVMS Enterprise 🎥
 
-![Version](https://img.shields.io/badge/version-2.1.5-blue.svg)
+![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)
 ![Electron](https://img.shields.io/badge/Electron-191970?logo=electron&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-B73BFE?logo=vite&logoColor=FFD62E)
