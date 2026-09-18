@@ -212,7 +212,7 @@ function App() {
       )}
 
       {/* Thanh Menu Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px', background: 'var(--card-bg)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>
+      <header style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 30px', background: 'var(--card-bg)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <img src="/logo.png" alt="ProVMS Logo" style={{ height: '36px', objectFit: 'contain' }} />

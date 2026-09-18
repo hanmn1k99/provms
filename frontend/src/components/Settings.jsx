@@ -52,7 +52,7 @@ const Settings = ({ cameras, onCamerasUpdated, showToast }) => {
   return (
     <div style={{ display: 'flex', height: '100%', background: 'var(--bg)', color: 'var(--text)' }}>
       {/* Sidebar Cài đặt */}
-      <div style={{ width: '250px', borderRight: '1px solid var(--border)', background: 'var(--card-bg)', padding: '20px 0' }}>
+      <div style={{ width: '200px', flexShrink: 0, borderRight: '1px solid var(--border)', background: 'var(--card-bg)', padding: '20px 0' }}>
         <h2 style={{ padding: '0 20px', marginBottom: '20px', fontSize: '1.25rem' }}>Cài đặt Hệ thống</h2>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <button
