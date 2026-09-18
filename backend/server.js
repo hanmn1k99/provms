@@ -235,10 +235,10 @@ app.post('/api/stream/start', (req, res) => {
     ];
 
     if (transcodeMode === 'gpu_intel') {
-        inputOptions.unshift('-hwaccel', 'qsv');
+        inputOptions.unshift('-hwaccel', 'qsv', '-hwaccel_output_format', 'qsv');
         outputOptions.push('-c:v h264_qsv', '-preset veryfast', '-g 30', '-bf 0');
     } else if (transcodeMode === 'gpu_nvidia') {
-        inputOptions.unshift('-hwaccel', 'cuda');
+        inputOptions.unshift('-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda');
         outputOptions.push('-c:v h264_nvenc', '-preset p1', '-tune ll', '-g 30', '-bf 0');
     } else if (transcodeMode === 'gpu_amd') {
         inputOptions.unshift('-hwaccel', 'd3d11va');
