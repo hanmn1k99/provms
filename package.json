@@ -1,6 +1,6 @@
 {
   "name": "provms-enterprise",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "ProVMS Enterprise Edition",
   "main": "main.js",
   "scripts": {
@@ -28,6 +28,7 @@
     },
     "files": [
       "main.js",
+      "preload.js",
       "backend/**/*",
       "!backend/provms.db",
       "frontend/dist/**/*",
