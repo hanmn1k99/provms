@@ -35,13 +35,18 @@ ProVMS Enterprise là hệ thống quản lý và giám sát Camera tập trung 
 - Vào **Cài đặt Hệ thống** > **Quản lý Camera**.
 - Bấm **Tải Mẫu Excel** để lấy định dạng chuẩn.
 - Điền thông tin Camera. Tại cột **Giải mã**, nhập:
-  - `1`: Copy Stream (Khuyên dùng - Nhẹ máy nhất)
-  - `2`: CPU (Khử nén bằng CPU)
-  - `3`: GPU (Nếu máy có card rời NVIDIA / NVENC)
-- Bấm **Nhập từ Excel**, 100 camera sẽ được khởi tạo đường link RTSP tự động và đưa vào database trong chưa tới 1 giây.
+  - `1`: Copy Stream (Khuyên dùng - Nhẹ máy nhất, yêu cầu cam H.264)
+  - `2`: Chế độ H.265 (Tự động nhận diện và giải mã H.265 bằng GPU NVIDIA/Intel/AMD kết hợp CPU, phá vỡ giới hạn khóa 8 luồng)
+  - `3`: Chế độ Phần mềm (Chỉ dùng CPU)
+- Bấm **Nhập từ Excel**, các camera sẽ được khởi tạo đường link RTSP tự động và đưa vào database.
 
-### 3. Xóa Camera hàng loạt
-- Tại bảng Quản lý Camera, tick chọn các ô kiểm (checkbox) ở đầu mỗi dòng (hoặc tick ô trên cùng để chọn tất cả).
+### 3. Truy cập từ máy khác trong cùng mạng LAN 🌍
+ProVMS được thiết kế để phát sóng nội bộ. Máy tính cài app đóng vai trò là **Server** (gánh vác việc xử lý CPU/GPU để giải nén video). Các máy tính khác trong cùng mạng WiFi/LAN chỉ cần mở trình duyệt web lên để xem mà không phải xử lý nặng.
+- **Cách truy cập**: Từ máy tính khác, mở Google Chrome và truy cập địa chỉ `http://IP_MÁY_CHỦ:3000` (VD: `http://192.168.1.10:3000`).
+- **Lưu ý**: Bạn cần mở port `3000` và `8000` trên Windows Firewall của Máy chủ để các máy khác kết nối được (có thể chạy script `.bat` tự động đính kèm).
+
+### 4. Xóa Camera hàng loạt
+- Tại bảng Quản lý Camera, tick chọn các ô kiểm (checkbox) ở đầu mỗi dòng.
 - Bấm **Xóa N mục** (nút màu đỏ) để dọn dẹp hệ thống nhanh chóng.
 
 ## Công nghệ sử dụng 🛠️
