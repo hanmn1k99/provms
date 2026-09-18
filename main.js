@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -9,6 +9,19 @@ app.setPath('userData', path.join(app.getPath('appData'), 'minhhan.net', 'provms
 let mainWindow;
 let serverProcess;
 
+// Cấu hình IPC cho Auto Start
+ipcMain.handle('get-auto-start', () => {
+    return app.getLoginItemSettings().openAtLogin;
+});
+
+ipcMain.handle('set-auto-start', (event, enabled) => {
+    app.setLoginItemSettings({
+        openAtLogin: enabled,
+        path: app.getPath('exe')
+    });
+    return app.getLoginItemSettings().openAtLogin;
+});
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -16,7 +29,8 @@ function createWindow() {
     title: "ProVMS Enterprise",
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     icon: path.join(__dirname, 'frontend/public/favicon.png'),
     autoHideMenuBar: true

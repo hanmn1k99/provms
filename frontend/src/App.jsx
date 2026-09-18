@@ -58,22 +58,9 @@ function App() {
         setNeedsSetup(true);
         setActiveTab('setup');
       } else if (!isLoggedIn) {
-        // Có user trong DB nhưng chưa đăng nhập → tự động đăng nhập admin
-        try {
-          const loginRes = await axios.post(`http://${window.location.hostname}:3000/api/auto-login`);
-          if (loginRes.data.success) {
-            setIsLoggedIn(true);
-            setCurrentUser(loginRes.data.user);
-            setActiveTab('grid');
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('currentUser', JSON.stringify(loginRes.data.user));
-          }
-        } catch (e) {
-          // Auto-login thất bại → hiện màn hình đăng nhập bình thường
-          if (!window.location.search.includes('mode=viewer')) {
-            setActiveTab('login');
-          }
-        }
+        // Mặc định luôn luôn vào lưới xem (Grid) ở trạng thái Khách (Guest)
+        // Khi nào cần thao tác cài đặt thì người dùng mới bấm nút Đăng nhập
+        setActiveTab('grid');
       }
       setSystemReady(true);
     } catch (e) {
