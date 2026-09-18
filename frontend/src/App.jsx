@@ -169,23 +169,9 @@ function App() {
   }, [isLoggedIn]);
 
   const [expandedCamera, setExpandedCamera] = useState(null);
-  const [appScale, setAppScale] = useState(1);
-  const [logicalHeight, setLogicalHeight] = useState(1080);
-
-  useEffect(() => {
-    const handleResize = () => {
-      const ratio = window.innerWidth / 1920;
-      setAppScale(ratio);
-      setLogicalHeight(window.innerHeight / ratio);
-    };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000' }}>
-      <div className="admin-root" style={{ width: '1920px', height: `${logicalHeight}px`, transform: `scale(${appScale})`, transformOrigin: 'top left', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)', fontFamily: '"Inter", sans-serif', overflow: 'hidden', position: 'relative' }}>
+    <div className="admin-root" style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)', fontFamily: '"Inter", sans-serif', overflow: 'hidden' }}>
         
       {/* Loading screen - chờ kiểm tra hệ thống xong */}
       {!systemReady && (
@@ -465,7 +451,6 @@ function App() {
         
         {activeTab === 'settings' && <Settings cameras={cameras} onCamerasUpdated={fetchCameras} showToast={showToast} />}
       </main>
-      </div>
     </div>
   );
 }
