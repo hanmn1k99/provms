@@ -6,7 +6,18 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 const path = require('path');
 
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+const fs = require('fs');
+
+// Đổi tên tiến trình trong Task Manager cho chuyên nghiệp
+const customFfmpegPath = path.join(__dirname, 'provms-worker.exe');
+try {
+    if (!fs.existsSync(customFfmpegPath)) {
+        fs.copyFileSync(ffmpegInstaller.path, customFfmpegPath);
+    }
+    ffmpeg.setFfmpegPath(customFfmpegPath);
+} catch (e) {
+    ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+}
 
 const app = express();
 app.use(cors());
