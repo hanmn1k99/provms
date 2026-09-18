@@ -314,7 +314,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
                   style={{ cursor: 'default' }}
                 />
               </th>
-              <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>ID</th>
+              <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>STT</th>
               <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>Tên Camera</th>
               <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>Địa chỉ IP / Kênh</th>
               <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>Luồng (Main/Sub)</th>
@@ -327,7 +327,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
                 <td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có camera nào trong hệ thống.</td>
               </tr>
             ) : (
-              cameras.map(cam => (
+              cameras.map((cam, index) => (
                 <tr key={cam.Id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '15px' }}>
                     <input 
@@ -337,7 +337,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
                       style={{ cursor: 'default' }}
                     />
                   </td>
-                  <td style={{ padding: '15px' }}>#{cam.Id}</td>
+                  <td style={{ padding: '15px' }}>{index + 1}</td>
                   <td style={{ padding: '15px', fontWeight: 500 }}>{cam.Name}</td>
                   <td style={{ padding: '15px', color: 'var(--text-muted)' }}>{cam.IpAddress || 'N/A'}</td>
                   <td style={{ padding: '15px' }}>

@@ -83,6 +83,13 @@ app.post('/api/cameras/bulk-delete', (req, res) => {
         const placeholders = ids.map(() => '?').join(',');
         const stmt = db.prepare(`DELETE FROM Cameras WHERE Id IN (${placeholders})`);
         stmt.run(...ids);
+
+        // Reset ID sequence nếu bảng đã trống
+        const count = db.prepare('SELECT COUNT(*) as count FROM Cameras').get().count;
+        if (count === 0) {
+            db.prepare("DELETE FROM sqlite_sequence WHERE name='Cameras'").run();
+        }
+
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
@@ -93,6 +100,15 @@ app.post('/api/cameras/bulk-delete', (req, res) => {
 app.delete('/api/cameras/:id', (req, res) => {
     const stmt = db.prepare('DELETE FROM Cameras WHERE Id=?');
     stmt.run(req.params.id);
+
+    // Xóa quyền truy cập liên kết
+    db.prepare('DELETE FROM UserCameraAccesses WHERE CameraId=?').run(req.params.id);
+
+    // Reset ID sequence nếu bảng đã trống
+    const count = db.prepare('SELECT COUNT(*) as count FROM Cameras').get().count;
+    if (count === 0) {
+        db.prepare("DELETE FROM sqlite_sequence WHERE name='Cameras'").run();
+    }
     res.json({ success: true });
 });
 
