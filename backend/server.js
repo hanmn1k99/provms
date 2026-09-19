@@ -299,8 +299,10 @@ wss.on('connection', (ws, req) => {
             .inputOptions([
                 '-rtsp_transport tcp',
                 '-hwaccel auto',
-                '-analyzeduration 1000000',
-                '-probesize 1000000'
+                '-fflags nobuffer',
+                '-flags low_delay',
+                '-analyzeduration 50000',
+                '-probesize 50000'
             ])
             .outputOptions([
                 '-an',
@@ -408,9 +410,11 @@ app.post('/api/stream/start', (req, res) => {
     console.log(`[Stream] Khởi động luồng cho Camera ${cameraId}: ${rtspUrl} (Chế độ: ${transcodeMode})`);
 
     let inputOptions = [
-        '-rtsp_transport tcp', 
-        '-analyzeduration 1000000', // Phân tích 1 giây để khởi động nhanh
-        '-probesize 1000000' // Khung đệm 1MB
+        '-rtsp_transport tcp',
+        '-fflags nobuffer',
+        '-flags low_delay',
+        '-analyzeduration 100000', // Phân tích 0.1 giây để khởi động siêu tốc
+        '-probesize 100000' // Khung đệm siêu nhỏ
     ];
 
     let outputOptions = [

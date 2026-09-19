@@ -404,8 +404,6 @@ function App() {
                   <option value={16} style={{ background: '#0f1629', color: '#e2e8f0' }}>16 Camera (4x4)</option>
                   <option value={25} style={{ background: '#0f1629', color: '#e2e8f0' }}>25 Camera (5x5)</option>
                   <option value={32} style={{ background: '#0f1629', color: '#e2e8f0' }}>32 Camera (8x4)</option>
-                  <option value={36} style={{ background: '#0f1629', color: '#e2e8f0' }}>36 Camera (6x6)</option>
-                  <option value={64} style={{ background: '#0f1629', color: '#e2e8f0' }}>64 Camera (8x8)</option>
                 </select>
               </div>
             </div>
