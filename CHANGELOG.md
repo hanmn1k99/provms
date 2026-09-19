@@ -2,6 +2,12 @@
 
 Tất cả những thay đổi nổi bật của dự án **ProVMS Enterprise** sẽ được ghi chép tại đây.
 
+## [2.5.0] - 2026-09-19
+### Thêm mới (Added)
+- **Tích hợp API phần cứng (Native SDK Integration):** Tích hợp sâu giao thức ISAPI (Hikvision) và CGI (Dahua). 
+- **Điều khiển PTZ:** Bổ sung Overlay điều khiển Quay quét / Thu phóng (PTZ) trên giao diện xem Camera toàn màn hình. Các lệnh PTZ được gọi ngầm trực tiếp qua giao thức REST của hãng (không thông qua RTSP ONVIF) đem lại độ phản hồi cực nhanh.
+- **Auto-Detect Streams:** Tự động điền link Luồng Phụ (Sub-stream) vào DataBase khi thêm camera Hikvision/Dahua. Giao diện Lưới tự động gọi luồng phụ (H.264) để chống 100% lỗi xám hình. Khi xem đơn mới kích hoạt luồng chính (Main-stream 4K H.265).
+
 ## [2.4.5] - 2026-09-18
 ### Thêm mới (Added)
 - **Khởi động cùng Windows:** Thêm tab *Cấu hình Hệ thống* (System Settings) cho phép người dùng tự do bật/tắt tính năng khởi động phần mềm cùng máy tính thông qua IPC hook trực tiếp vào Windows Registry.

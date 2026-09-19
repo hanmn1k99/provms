@@ -181,6 +181,78 @@ app.post('/api/reset-password', (req, res) => {
 });
 
 // ---------------------------------------------------------
+// TÍCH HỢP NATIVE API: HIKVISION ISAPI & DAHUA CGI (PTZ)
+// ---------------------------------------------------------
+const { exec } = require('child_process');
+
+app.post('/api/ptz', (req, res) => {
+    const { cameraId, command, action } = req.body;
+    // command: Up, Down, Left, Right, ZoomIn, ZoomOut
+    // action: start, stop
+
+    const camInfo = db.prepare('SELECT IpAddress, Username, Password, RtspMainStream FROM Cameras WHERE Id=?').get(cameraId);
+    if (!camInfo || !camInfo.IpAddress) {
+        return res.status(400).json({ error: 'Không lấy được thông tin IP Camera' });
+    }
+
+    const isDahua = camInfo.RtspMainStream && camInfo.RtspMainStream.includes('cam/realmonitor');
+    
+    // Lấy số kênh
+    let channel = 1;
+    if (isDahua) {
+        const match = camInfo.RtspMainStream.match(/channel=(\d+)/);
+        if (match) channel = match[1];
+    } else {
+        const match = camInfo.RtspMainStream.match(/Channels\/(\d+)01/);
+        if (match) channel = match[1];
+    }
+
+    let curlCmd = '';
+    const user = camInfo.Username;
+    const pass = camInfo.Password;
+    const ip = camInfo.IpAddress;
+
+    if (isDahua) {
+        // --- DAHUA CGI ---
+        // Lệnh Dahua mẫu: /cgi-bin/ptz.cgi?action=start&channel=1&code=Left&arg1=5&arg2=5&arg3=0
+        const dahuaCodeMap = {
+            'Up': 'Up', 'Down': 'Down', 'Left': 'Left', 'Right': 'Right',
+            'ZoomIn': 'ZoomTele', 'ZoomOut': 'ZoomWide'
+        };
+        const dCode = dahuaCodeMap[command];
+        const actionCode = action === 'start' ? 'start' : 'stop';
+        const url = `http://${ip}/cgi-bin/ptz.cgi?action=${actionCode}&channel=${channel}&code=${dCode}&arg1=5&arg2=5&arg3=0`;
+        // Dahua hỗ trợ DigestAuth, dùng --anyauth của curl
+        curlCmd = `curl -s --anyauth -u "${user}:${pass}" "${url}"`;
+    } else {
+        // --- HIKVISION ISAPI ---
+        // Lệnh mẫu: PUT /ISAPI/PTZCtrl/channels/1/continuous
+        // XML: <PTZData><pan>60</pan><tilt>0</tilt></PTZData>
+        let p = 0, t = 0, z = 0;
+        if (action === 'start') {
+            if (command === 'Left') p = -60;
+            if (command === 'Right') p = 60;
+            if (command === 'Up') t = 60;
+            if (command === 'Down') t = -60;
+            if (command === 'ZoomIn') z = 60;
+            if (command === 'ZoomOut') z = -60;
+        }
+        const xml = `<PTZData><pan>${p}</pan><tilt>${t}</tilt><zoom>${z}</zoom></PTZData>`;
+        const url = `http://${ip}/ISAPI/PTZCtrl/channels/${channel}/continuous`;
+        curlCmd = `curl -s --anyauth -u "${user}:${pass}" -X PUT -H "Content-Type: application/xml" -d "${xml}" "${url}"`;
+    }
+
+    // Thực thi ngầm qua hệ điều hành (chống lỗi CORS/DigestAuth trên trình duyệt)
+    exec(curlCmd, (error) => {
+        if (error) {
+            console.error(`[PTZ Error] ${error.message}`);
+            return res.status(500).json({ error: 'Lỗi gửi lệnh PTZ' });
+        }
+        res.json({ success: true });
+    });
+});
+
+// ---------------------------------------------------------
 // HỆ THỐNG XỬ LÝ LUỒNG VIDEO (FFMPEG -> RTMP -> FLV)
 // ---------------------------------------------------------
 const activeStreams = new Map();

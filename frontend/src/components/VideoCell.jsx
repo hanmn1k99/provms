@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import FlvPlayer from './FlvPlayer';
-import { Camera } from 'lucide-react';
+import { Camera, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 
 const VideoCell = ({ camera, isMainStream = false }) => {
   const [flvUrl, setFlvUrl] = useState(null);
@@ -51,6 +51,14 @@ const VideoCell = ({ camera, isMainStream = false }) => {
     );
   }
 
+  const handlePtz = (command, action) => {
+    axios.post(`http://${window.location.hostname}:3000/api/ptz`, {
+      cameraId: camera.Id,
+      command,
+      action
+    }).catch(err => console.log('PTZ error', err));
+  };
+
   return (
     <>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
@@ -70,6 +78,25 @@ const VideoCell = ({ camera, isMainStream = false }) => {
       <div style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 10, display: 'flex', gap: '4px' }}>
         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', animation: 'pulse 2s infinite' }} />
       </div>
+
+      {/* Bảng điều khiển PTZ (chỉ hiện ở chế độ xem đơn/MainStream) */}
+      {isMainStream && (
+        <div style={{ position: 'absolute', right: '20px', bottom: '20px', zIndex: 20, display: 'flex', flexDirection: 'column', gap: '15px', background: 'rgba(0,0,0,0.5)', padding: '15px', borderRadius: '12px', backdropFilter: 'blur(4px)' }}>
+          <div style={{ textAlign: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '5px' }}>PTZ CTRL</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px', alignSelf: 'center' }}>
+            <div />
+            <button className="ptz-btn" onMouseDown={() => handlePtz('Up', 'start')} onMouseUp={() => handlePtz('Up', 'stop')} onMouseLeave={() => handlePtz('Up', 'stop')}><ChevronUp size={20}/></button>
+            <div />
+            <button className="ptz-btn" onMouseDown={() => handlePtz('Left', 'start')} onMouseUp={() => handlePtz('Left', 'stop')} onMouseLeave={() => handlePtz('Left', 'stop')}><ChevronLeft size={20}/></button>
+            <button className="ptz-btn" onMouseDown={() => handlePtz('Down', 'start')} onMouseUp={() => handlePtz('Down', 'stop')} onMouseLeave={() => handlePtz('Down', 'stop')}><ChevronDown size={20}/></button>
+            <button className="ptz-btn" onMouseDown={() => handlePtz('Right', 'start')} onMouseUp={() => handlePtz('Right', 'stop')} onMouseLeave={() => handlePtz('Right', 'stop')}><ChevronRight size={20}/></button>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+            <button className="ptz-btn" onMouseDown={() => handlePtz('ZoomIn', 'start')} onMouseUp={() => handlePtz('ZoomIn', 'stop')} onMouseLeave={() => handlePtz('ZoomIn', 'stop')}><ZoomIn size={18}/></button>
+            <button className="ptz-btn" onMouseDown={() => handlePtz('ZoomOut', 'start')} onMouseUp={() => handlePtz('ZoomOut', 'stop')} onMouseLeave={() => handlePtz('ZoomOut', 'stop')}><ZoomOut size={18}/></button>
+          </div>
+        </div>
+      )}
     </>
   );
 };
