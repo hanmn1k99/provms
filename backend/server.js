@@ -52,9 +52,9 @@ app.get('/api/cameras', (req, res) => {
 
 // API: Thêm Camera mới
 app.post('/api/cameras', (req, res) => {
-    const { Name, IpAddress, Username, Password, RtspMainStream, RtspSubStream, TranscodeMode = 'copy' } = req.body;
-    const stmt = db.prepare('INSERT INTO Cameras (Name, IpAddress, Username, Password, RtspMainStream, RtspSubStream, TranscodeMode) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    const info = stmt.run(Name, IpAddress, Username, Password, RtspMainStream, RtspSubStream, TranscodeMode);
+    const { Name, IpAddress, Username, Password, RtspMainStream, RtspSubStream } = req.body;
+    const stmt = db.prepare('INSERT INTO Cameras (Name, IpAddress, Username, Password, RtspMainStream, RtspSubStream) VALUES (?, ?, ?, ?, ?, ?)');
+    const info = stmt.run(Name, IpAddress, Username, Password, RtspMainStream, RtspSubStream);
     res.json({ success: true, id: info.lastInsertRowid });
 });
 
@@ -66,12 +66,12 @@ app.post('/api/cameras/bulk', (req, res) => {
     }
     
     try {
-        const stmt = db.prepare('INSERT INTO Cameras (Name, IpAddress, Username, Password, RtspMainStream, RtspSubStream, TranscodeMode) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        const stmt = db.prepare('INSERT INTO Cameras (Name, IpAddress, Username, Password, RtspMainStream, RtspSubStream) VALUES (?, ?, ?, ?, ?, ?)');
         const insertMany = db.transaction((cams) => {
             let count = 0;
             for (const cam of cams) {
                 if (cam.Name && cam.IpAddress) {
-                    stmt.run(cam.Name, cam.IpAddress, cam.Username || '', cam.Password || '', cam.RtspMainStream || '', cam.RtspSubStream || '', cam.TranscodeMode || 'copy');
+                    stmt.run(cam.Name, cam.IpAddress, cam.Username || '', cam.Password || '', cam.RtspMainStream || '', cam.RtspSubStream || '');
                     count++;
                 }
             }

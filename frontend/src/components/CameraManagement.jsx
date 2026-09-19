@@ -159,31 +159,27 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
       'Kênh': 1,
       'Tài khoản': 'admin',
       'Mật khẩu': 'password123',
-      'Hãng': 'Hikvision',
-      'Chế độ (1-6)': 2
+      'Hãng': 'Hikvision'
     }]);
     
     // Auto size columns a bit
-    ws['!cols'] = [{wch: 25}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 20}];
+    ws['!cols'] = [{wch: 25}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 15}];
     
     // Sheet thứ 2: Hướng dẫn nhập liệu
     const wsInstructions = XLSX.utils.aoa_to_sheet([
       ['HƯỚNG DẪN NHẬP DỮ LIỆU CAMERA'],
       [],
-      ['CHI TIẾT CỘT "Chế độ (1-6)":', 'Ý NGHĨA'],
-      ['Nhập số 1', 'Chế độ Gốc (Nhẹ nhất, Yêu cầu Camera phải xuất chuẩn H.264)'],
-      ['Nhập số 2', 'Chế độ Hybrid (KHUYÊN DÙNG - Tự động tận dụng mọi phần cứng có sẵn)'],
-      ['Nhập số 3', 'Chế độ Phần mềm (Chỉ dùng CPU - Dành cho máy chủ cấu hình thấp)'],
-      ['Nhập số 4', 'Siêu tốc Intel (Dành riêng cho máy có Card Onboard Intel Quick Sync)'],
-      ['Nhập số 5', 'Siêu tốc NVIDIA (Chỉ dùng khi máy đã bẻ khóa giới hạn NVENC)'],
-      ['Nhập số 6', 'Siêu tốc AMD (Dành riêng cho máy chủ chạy chip/card AMD AMF)']
+      ['Lưu ý: Chế độ giải mã H.265 nay đã được cấu hình chung trong Cài đặt Hệ thống.'],
+      ['Cột Hãng:', 'Nhập "Hikvision" hoặc "Dahua". Nếu để trống sẽ mặc định là Hikvision.']
     ]);
-    wsInstructions['!cols'] = [{wch: 25}, {wch: 80}];
+
+    wsInstructions['!cols'] = [{wch: 30}, {wch: 70}];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Danh_Sach_Camera'); // Sheet 1 (Code chỉ đọc sheet này)
-    XLSX.utils.book_append_sheet(wb, wsInstructions, 'Huong_Dan_Nhap_Lieu'); // Sheet 2 (Chỉ để người đọc)
-    XLSX.writeFile(wb, 'import_template.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'DanhSachCamera');
+    XLSX.utils.book_append_sheet(wb, wsInstructions, 'HuongDan');
+    
+    XLSX.writeFile(wb, 'ProVMS_Camera_Template.xlsx');
   };
 
   const handleFileUpload = (e) => {
@@ -204,15 +200,6 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
           return;
         }
 
-        const transcodeMap = { 
-          1: 'copy', 
-          2: 'auto_h265', 
-          3: 'cpu',
-          4: 'gpu_intel',
-          5: 'gpu_nvidia',
-          6: 'gpu_amd'
-        };
-
         const bulkCameras = data.map(row => {
           const name = row['Tên Camera'] || '';
           const ip = row['IP'] || row['IP/Tên miền'] || '';
@@ -220,13 +207,6 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
           const user = row['Tài khoản'] || '';
           const pass = row['Mật khẩu'] || '';
           const brand = row['Hãng'] || row['Hãng (Hikvision/Dahua)'] || 'Hikvision';
-          
-          // Quét thông minh: Lấy cột nào có chữ "Giải mã" hoặc "Chế độ"
-          const transcodeKey = Object.keys(row).find(k => 
-            k.toLowerCase().includes('giải mã') || k.toLowerCase().includes('chế độ')
-          );
-          const rawTranscode = transcodeKey ? row[transcodeKey] : 2; // Mặc định là 2 (Hybrid)
-          const transcodeMode = transcodeMap[rawTranscode] || 'auto_h265';
 
           let mainStream = '';
           let subStream = '';
@@ -248,8 +228,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
             Username: user,
             Password: pass,
             RtspMainStream: mainStream,
-            RtspSubStream: subStream,
-            TranscodeMode: transcodeMode
+            RtspSubStream: subStream
           };
         }).filter(cam => cam.Name && cam.IpAddress); // Lọc bỏ dòng trống
 
