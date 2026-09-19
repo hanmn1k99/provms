@@ -1,6 +1,6 @@
 {
   "name": "provms-enterprise",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "ProVMS Enterprise Edition",
   "main": "main.js",
   "scripts": {
