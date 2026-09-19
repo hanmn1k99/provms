@@ -10,9 +10,9 @@ const VideoCell = ({ camera, isMainStream = false }) => {
   useEffect(() => {
     let isMounted = true;
     
-    if (camera) {
+    if (camera && isMainStream) {
       setLoading(true);
-      const urlToPlay = isMainStream ? camera.RtspMainStream : (camera.RtspSubStream || camera.RtspMainStream);
+      const urlToPlay = camera.RtspMainStream;
       
       // Gọi API yêu cầu Backend chạy FFmpeg cho camera này
       axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
@@ -29,12 +29,14 @@ const VideoCell = ({ camera, isMainStream = false }) => {
         console.error('Lỗi khi lấy luồng stream:', err);
         if (isMounted) setLoading(false);
       });
+    } else {
+        setLoading(false);
     }
 
     return () => {
       isMounted = false;
-      if (camera) {
-        const urlToStop = isMainStream ? camera.RtspMainStream : (camera.RtspSubStream || camera.RtspMainStream);
+      if (camera && isMainStream) {
+        const urlToStop = camera.RtspMainStream;
         axios.post(`http://${window.location.hostname}:3000/api/stream/stop`, {
           cameraId: camera.Id,
           rtspUrl: urlToStop
@@ -62,12 +64,20 @@ const VideoCell = ({ camera, isMainStream = false }) => {
   return (
     <>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
-        {loading ? (
+        {loading && isMainStream ? (
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'black' }}>
-            <span style={{ color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.875rem' }}>CONNECTING...</span>
+            <span style={{ color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.875rem' }}>CONNECTING MAIN...</span>
           </div>
         ) : (
-          <FlvPlayer url={flvUrl} isMuted={true} />
+          isMainStream ? (
+            <FlvPlayer url={flvUrl} isMuted={true} />
+          ) : (
+            <img 
+              src={`http://${window.location.hostname}:3000/api/stream/mjpeg?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`} 
+              style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000' }} 
+              alt="SubStream"
+            />
+          )
         )}
       </div>
 

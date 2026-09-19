@@ -257,6 +257,49 @@ app.post('/api/ptz', (req, res) => {
 // ---------------------------------------------------------
 const activeStreams = new Map();
 
+app.get('/api/stream/mjpeg', (req, res) => {
+    const { rtspUrl } = req.query;
+    if (!rtspUrl) return res.status(400).send('Missing rtspUrl');
+
+    console.log(`[MJPEG] Khởi động luồng Grid View: ${rtspUrl}`);
+
+    res.writeHead(200, {
+        'Content-Type': 'multipart/x-mixed-replace; boundary=myboundary',
+        'Cache-Control': 'no-cache',
+        'Connection': 'close',
+        'Pragma': 'no-cache'
+    });
+
+    const command = ffmpeg(rtspUrl)
+        .inputOptions([
+            '-rtsp_transport tcp',
+            '-hwaccel auto', // Giải mã H.265 bằng GPU (NVDEC không bị giới hạn session)
+            '-analyzeduration 1000000',
+            '-probesize 1000000'
+        ])
+        .outputOptions([
+            '-an',
+            '-c:v mjpeg', // Mã hóa sang MJPEG bằng CPU (cực kỳ nhẹ cho phân giải thấp)
+            '-q:v 5',     // Chất lượng vừa phải để tối ưu băng thông
+            '-r 15',      // Ép 15 fps cho Grid View
+            '-f mpjpeg'
+        ])
+        .on('error', (err) => {
+            console.error(`[MJPEG] Lỗi: ${err.message}`);
+            res.end();
+        });
+
+    const pipeStream = command.pipe();
+    pipeStream.on('data', (chunk) => {
+        res.write(chunk);
+    });
+    
+    req.on('close', () => {
+        console.log(`[MJPEG] Client ngắt kết nối, dừng stream.`);
+        command.kill('SIGKILL');
+    });
+});
+
 app.post('/api/stream/start', (req, res) => {
     const { cameraId, rtspUrl } = req.body;
     
