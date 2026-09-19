@@ -428,16 +428,6 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
                 <input className="input" type="text" value={formData.RtspMainStream} onChange={e => setFormData({...formData, RtspMainStream: e.target.value})} />
                 <input className="input" type="text" value={formData.RtspSubStream} onChange={e => setFormData({...formData, RtspSubStream: e.target.value})} />
               </div>
-              
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Phần cứng Giải mã H.265 (Chỉ kích hoạt khi phóng to Luồng Chính)</label>
-                <select className="input" value={formData.TranscodeMode} onChange={e => setFormData({...formData, TranscodeMode: e.target.value})}>
-                  <option value="copy">1. Tự động Hybrid (Giải mã GPU + Nén CPU)</option>
-                  <option value="gpu_nvidia">2. Siêu tốc NVIDIA NVENC (Khuyên dùng cho GTX/RTX)</option>
-                  <option value="gpu_intel">3. Siêu tốc Intel QuickSync (Card Onboard)</option>
-                  <option value="cpu">4. Chế độ Phần mềm (Chỉ dùng CPU)</option>
-                </select>
-              </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy bỏ</button>

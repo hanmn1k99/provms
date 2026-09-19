@@ -26,6 +26,24 @@ app.use(express.json());
 // Phục vụ Frontend tĩnh
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
+app.get('/api/settings', (req, res) => {
+    const stmt = db.prepare('SELECT Key, Value FROM Settings');
+    const rows = stmt.all();
+    const settings = {};
+    rows.forEach(r => settings[r.Key] = r.Value);
+    res.json(settings);
+});
+
+app.post('/api/settings', (req, res) => {
+    const { key, value } = req.body;
+    const stmt = db.prepare(`
+        INSERT INTO Settings (Key, Value) VALUES (?, ?) 
+        ON CONFLICT(Key) DO UPDATE SET Value = excluded.Value
+    `);
+    stmt.run(key, value);
+    res.json({ success: true });
+});
+
 // API: Lấy danh sách Camera
 app.get('/api/cameras', (req, res) => {
     const stmt = db.prepare('SELECT * FROM Cameras');
@@ -286,13 +304,13 @@ app.get('/api/stream/mjpeg', (req, res) => {
         ])
         .on('error', (err) => {
             console.error(`[MJPEG] Lỗi: ${err.message}`);
+            if (!res.headersSent) res.end();
+        })
+        .on('end', () => {
             res.end();
         });
 
-    const pipeStream = command.pipe();
-    pipeStream.on('data', (chunk) => {
-        res.write(chunk);
-    });
+    command.pipe(res, { end: true });
     
     req.on('close', () => {
         console.log(`[MJPEG] Client ngắt kết nối, dừng stream.`);
@@ -332,9 +350,9 @@ app.post('/api/stream/start', (req, res) => {
         }
     }
 
-    const stmt = db.prepare('SELECT TranscodeMode FROM Cameras WHERE Id = ?');
-    const camInfo = stmt.get(cameraId);
-    const transcodeMode = camInfo ? camInfo.TranscodeMode : 'copy';
+    const settingStmt = db.prepare('SELECT Value FROM Settings WHERE Key = ?');
+    const settingObj = settingStmt.get('GlobalTranscodeMode');
+    const transcodeMode = settingObj ? settingObj.Value : 'gpu_hybrid';
 
     console.log(`[Stream] Khởi động luồng cho Camera ${cameraId}: ${rtspUrl} (Chế độ: ${transcodeMode})`);
 

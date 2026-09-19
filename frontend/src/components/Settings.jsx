@@ -2,14 +2,21 @@ import React, { useState, useEffect } from 'react';
 import CameraManagement from './CameraManagement';
 import UserManagement from './UserManagement';
 import { Camera, Users, Settings as SettingsIcon } from 'lucide-react';
+import axios from 'axios';
 
 const SystemSettings = ({ showToast }) => {
   const [autoStart, setAutoStart] = useState(false);
+  const [transcodeMode, setTranscodeMode] = useState('gpu_hybrid');
 
   useEffect(() => {
     if (window.electronAPI) {
       window.electronAPI.getAutoStart().then(setAutoStart);
     }
+    axios.get(`http://${window.location.hostname}:3000/api/settings`).then(res => {
+      if (res.data && res.data.GlobalTranscodeMode) {
+        setTranscodeMode(res.data.GlobalTranscodeMode);
+      }
+    });
   }, []);
 
   const handleToggleAutoStart = async (e) => {
@@ -23,9 +30,35 @@ const SystemSettings = ({ showToast }) => {
     }
   };
 
+  const handleChangeTranscodeMode = async (e) => {
+    const value = e.target.value;
+    setTranscodeMode(value);
+    try {
+      await axios.post(`http://${window.location.hostname}:3000/api/settings`, {
+        key: 'GlobalTranscodeMode',
+        value: value
+      });
+      showToast?.('Đã lưu chế độ giải mã', 'success');
+    } catch (err) {
+      showToast?.('Lỗi khi lưu cài đặt', 'error');
+    }
+  };
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
       <h2 style={{ marginBottom: '20px' }}>Cấu hình Hệ thống</h2>
+      
+      <div className="admin-card" style={{ padding: '20px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', marginBottom: '15px' }}>
+        <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem' }}>Phần cứng Giải mã H.265 (Double-Click Luồng Chính)</h4>
+        <p style={{ margin: '0 0 15px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Áp dụng chung cho toàn bộ Camera khi xem toàn màn hình.</p>
+        <select className="input" value={transcodeMode} onChange={handleChangeTranscodeMode} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border)', background: '#1e293b', color: '#fff' }}>
+          <option value="gpu_hybrid">1. Tự động Hybrid (Giải mã GPU + Nén CPU)</option>
+          <option value="gpu_nvidia">2. Siêu tốc NVIDIA NVENC (Khuyên dùng cho GTX/RTX)</option>
+          <option value="gpu_intel">3. Siêu tốc Intel QuickSync (Card Onboard)</option>
+          <option value="cpu">4. Chế độ Phần mềm (Chỉ dùng CPU)</option>
+        </select>
+      </div>
+
       <div className="admin-card" style={{ padding: '20px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>

@@ -34,6 +34,11 @@ db.exec(`
     FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
     FOREIGN KEY (CameraId) REFERENCES Cameras(Id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS Settings (
+    Key TEXT PRIMARY KEY,
+    Value TEXT NOT NULL
+  );
 `);
 
 // Try to add FullName column if it doesn't exist (for existing DBs)
