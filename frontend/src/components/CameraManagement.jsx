@@ -14,7 +14,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
     Name: '',
     IpAddress: '',
     Channel: '1',
-    Username: '',
+    Username: 'admin',
     Password: '',
     RtspMainStream: '',
     RtspSubStream: '',
@@ -86,7 +86,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
         Name: '',
         IpAddress: '',
         Channel: '1',
-        Username: '',
+        Username: 'admin',
         Password: '',
         RtspMainStream: '',
         RtspSubStream: '',
@@ -424,18 +424,10 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Luồng Chính (RTSP Main Stream) - <span style={{color: 'var(--accent)'}}>Tự động sinh</span></label>
-                <input className="input" type="text" required value={formData.RtspMainStream} onChange={e => setFormData({...formData, RtspMainStream: e.target.value})} placeholder="Nhập IP, TK, MK để tự sinh link" />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '25px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Luồng Phụ (RTSP Sub Stream) - <span style={{color: 'var(--accent)'}}>Tự động sinh</span></label>
-                <input className="input" type="text" value={formData.RtspSubStream} onChange={e => setFormData({...formData, RtspSubStream: e.target.value})} placeholder="Nhập IP, TK, MK để tự sinh link" />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chế độ Xử lý Video (Chỉ cần chọn 1 trong 6)</label>
+              <div style={{ display: 'none' }}>
+                <input className="input" type="text" value={formData.RtspMainStream} onChange={e => setFormData({...formData, RtspMainStream: e.target.value})} />
+                <input className="input" type="text" value={formData.RtspSubStream} onChange={e => setFormData({...formData, RtspSubStream: e.target.value})} />
+                
                 <select className="input" value={formData.TranscodeMode} onChange={e => setFormData({...formData, TranscodeMode: e.target.value})}>
                   <option value="copy">1. Chế độ Gốc (Mượt nhất - Yêu cầu Camera chuẩn H.264)</option>
                   <option value="auto_h265">2. Chế độ H.265 (Tự động Hybrid - Giải mã GPU + Nén CPU)</option>
