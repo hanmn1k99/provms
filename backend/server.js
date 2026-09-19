@@ -275,45 +275,62 @@ app.post('/api/ptz', (req, res) => {
 // ---------------------------------------------------------
 const activeStreams = new Map();
 
-app.get('/api/stream/mjpeg', (req, res) => {
-    const { rtspUrl } = req.query;
-    if (!rtspUrl) return res.status(400).send('Missing rtspUrl');
+// Cấu hình WebSocket Server cho MJPEG (Tránh giới hạn 6 connection của HTTP)
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 3001 }, () => {
+    console.log('MJPEG WebSocket Server running on port 3001');
+});
 
-    console.log(`[MJPEG] Khởi động luồng Grid View: ${rtspUrl}`);
+wss.on('connection', (ws, req) => {
+    // URL format: /?rtspUrl=...
+    const urlParams = new URLSearchParams(req.url.split('?')[1]);
+    const rtspUrl = urlParams.get('rtspUrl');
+    
+    if (!rtspUrl) {
+        ws.close();
+        return;
+    }
 
-    res.writeHead(200, {
-        'Content-Type': 'multipart/x-mixed-replace; boundary=ffmpeg',
-        'Cache-Control': 'no-cache',
-        'Connection': 'close',
-        'Pragma': 'no-cache'
-    });
+    console.log(`[MJPEG-WS] Khởi động luồng Grid View: ${rtspUrl}`);
 
     const command = ffmpeg(rtspUrl)
         .inputOptions([
             '-rtsp_transport tcp',
-            '-hwaccel auto', // Giải mã H.265 bằng GPU (NVDEC không bị giới hạn session)
+            '-hwaccel auto',
             '-analyzeduration 1000000',
             '-probesize 1000000'
         ])
         .outputOptions([
             '-an',
-            '-c:v mjpeg', // Mã hóa sang MJPEG bằng CPU (cực kỳ nhẹ cho phân giải thấp)
-            '-q:v 5',     // Chất lượng vừa phải để tối ưu băng thông
-            '-r 15',      // Ép 15 fps cho Grid View
-            '-f mpjpeg'
+            '-c:v mjpeg',
+            '-q:v 5',
+            '-r 15',
+            '-f image2pipe' // pipe raw JPEGs
         ])
         .on('error', (err) => {
-            console.error(`[MJPEG] Lỗi: ${err.message}`);
-            if (!res.headersSent) res.end();
-        })
-        .on('end', () => {
-            res.end();
+            console.error(`[MJPEG-WS] Lỗi: ${err.message}`);
+            ws.close();
         });
 
-    command.pipe(res, { end: true });
+    const pipeStream = command.pipe();
     
-    req.on('close', () => {
-        console.log(`[MJPEG] Client ngắt kết nối, dừng stream.`);
+    let buffer = Buffer.alloc(0);
+    pipeStream.on('data', (chunk) => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        
+        buffer = Buffer.concat([buffer, chunk]);
+        
+        // Find JPEG end marker FF D9
+        let endIdx;
+        while ((endIdx = buffer.indexOf(Buffer.from([0xFF, 0xD9]))) !== -1) {
+            const frame = buffer.slice(0, endIdx + 2);
+            ws.send(frame);
+            buffer = buffer.slice(endIdx + 2);
+        }
+    });
+
+    ws.on('close', () => {
+        console.log(`[MJPEG-WS] Client ngắt kết nối, dừng stream.`);
         command.kill('SIGKILL');
     });
 });

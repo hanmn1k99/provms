@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import FlvPlayer from './FlvPlayer';
 import { Camera, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
@@ -6,31 +6,59 @@ import { Camera, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, Zoom
 const VideoCell = ({ camera, isMainStream = false }) => {
   const [flvUrl, setFlvUrl] = useState(null);
   const [loading, setLoading] = useState(true);
+  const canvasRef = useRef(null);
+  const wsRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
     
-    if (camera && isMainStream) {
+    if (camera) {
       setLoading(true);
-      const urlToPlay = camera.RtspMainStream;
-      
-      // Gọi API yêu cầu Backend chạy FFmpeg cho camera này
-      axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
-        cameraId: camera.Id,
-        rtspUrl: urlToPlay
-      })
-      .then(res => {
-        if (res.data.success && isMounted) {
-          setFlvUrl(res.data.flvUrl);
-          setLoading(false);
-        }
-      })
-      .catch(err => {
-        console.error('Lỗi khi lấy luồng stream:', err);
-        if (isMounted) setLoading(false);
-      });
+      if (isMainStream) {
+        const urlToPlay = camera.RtspMainStream;
+        axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
+          cameraId: camera.Id,
+          rtspUrl: urlToPlay
+        })
+        .then(res => {
+          if (res.data.success && isMounted) {
+            setFlvUrl(res.data.flvUrl);
+            setLoading(false);
+          }
+        })
+        .catch(err => {
+          console.error('Lỗi khi lấy luồng stream:', err);
+          if (isMounted) setLoading(false);
+        });
+      } else {
+        // Sử dụng WebSocket cho Sub Stream (Grid View) để tránh giới hạn 6 connection của HTTP
+        const wsUrl = `ws://${window.location.hostname}:3001/?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`;
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          if (isMounted) setLoading(false);
+        };
+
+        ws.onmessage = async (event) => {
+          if (canvasRef.current && event.data instanceof Blob) {
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const bitmap = await createImageBitmap(event.data);
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            ctx.drawImage(bitmap, 0, 0);
+            bitmap.close();
+          }
+        };
+
+        ws.onerror = (err) => {
+          console.error('WebSocket Error:', err);
+          if (isMounted) setLoading(false);
+        };
+      }
     } else {
-        setLoading(false);
+      setLoading(false);
     }
 
     return () => {
@@ -41,6 +69,9 @@ const VideoCell = ({ camera, isMainStream = false }) => {
           cameraId: camera.Id,
           rtspUrl: urlToStop
         }).catch(err => console.log('Lỗi khi dừng stream:', err));
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
       }
     };
   }, [camera, isMainStream]);
@@ -72,10 +103,9 @@ const VideoCell = ({ camera, isMainStream = false }) => {
           isMainStream ? (
             <FlvPlayer url={flvUrl} isMuted={true} />
           ) : (
-            <img 
-              src={`http://${window.location.hostname}:3000/api/stream/mjpeg?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`} 
+            <canvas 
+              ref={canvasRef}
               style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000' }} 
-              alt="SubStream"
             />
           )
         )}
