@@ -442,14 +442,15 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
               <div style={{ display: 'none' }}>
                 <input className="input" type="text" value={formData.RtspMainStream} onChange={e => setFormData({...formData, RtspMainStream: e.target.value})} />
                 <input className="input" type="text" value={formData.RtspSubStream} onChange={e => setFormData({...formData, RtspSubStream: e.target.value})} />
-                
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Phần cứng Giải mã H.265 (Chỉ kích hoạt khi phóng to Luồng Chính)</label>
                 <select className="input" value={formData.TranscodeMode} onChange={e => setFormData({...formData, TranscodeMode: e.target.value})}>
-                  <option value="copy">1. Chế độ Gốc (Mượt nhất - Yêu cầu Camera chuẩn H.264)</option>
-                  <option value="auto_h265">2. Chế độ H.265 (Tự động Hybrid - Giải mã GPU + Nén CPU)</option>
-                  <option value="cpu">3. Chế độ Phần mềm (Chỉ dùng CPU - Dành cho máy không card)</option>
-                  <option value="gpu_intel">4. Siêu tốc iGPU Intel (Dùng Quick Sync QSV không giới hạn)</option>
-                  <option value="gpu_nvidia">5. Siêu tốc NVIDIA (Chỉ dùng cho dòng card đã patch / Quadro)</option>
-                  <option value="gpu_amd">6. Siêu tốc AMD (Dùng AMF)</option>
+                  <option value="copy">1. Tự động Hybrid (Giải mã GPU + Nén CPU)</option>
+                  <option value="gpu_nvidia">2. Siêu tốc NVIDIA NVENC (Khuyên dùng cho GTX/RTX)</option>
+                  <option value="gpu_intel">3. Siêu tốc Intel QuickSync (Card Onboard)</option>
+                  <option value="cpu">4. Chế độ Phần mềm (Chỉ dùng CPU)</option>
                 </select>
               </div>
 
