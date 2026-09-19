@@ -306,21 +306,35 @@ app.post('/api/stream/start', (req, res) => {
         '-f flv'
     ];
 
-    if (transcodeMode === 'gpu_intel') {
+    // Tự động phân luồng (Smart Routing):
+    // - Luồng phụ (Sub-stream): Copy trực tiếp (0% CPU) vì đã được Tối ưu hóa sang H.264
+    // - Luồng chính (Main-stream): Tự động Transcode (H.265 -> H.264) để xem trên web
+    const isMainStream = rtspUrl.includes('subtype=0') || rtspUrl.match(/Channels\/\d+01/);
+    
+    let actualTranscodeMode = transcodeMode;
+    if (isMainStream) {
+        // Ép sang Auto H.265 Transcode nếu đang cố xem luồng chính (vì trình duyệt k hỗ trợ H.265 nguyên bản)
+        if (transcodeMode === 'copy') actualTranscodeMode = 'auto_h265';
+        console.log(`[Stream] Phát hiện Luồng CHÍNH (H.265). Kích hoạt bộ giải mã: ${actualTranscodeMode}`);
+    } else {
+        // Ép sang Copy nếu xem luồng phụ
+        actualTranscodeMode = 'copy';
+        console.log(`[Stream] Phát hiện Luồng PHỤ (H.264). Kích hoạt Direct Copy (0% CPU).`);
+    }
+
+    if (actualTranscodeMode === 'gpu_intel') {
         inputOptions.unshift('-hwaccel', 'qsv', '-hwaccel_output_format', 'qsv');
         outputOptions.push('-c:v h264_qsv', '-preset veryfast', '-g 30', '-bf 0');
-    } else if (transcodeMode === 'gpu_nvidia') {
+    } else if (actualTranscodeMode === 'gpu_nvidia') {
         inputOptions.unshift('-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda');
         outputOptions.push('-c:v h264_nvenc', '-preset p1', '-tune ll', '-g 30', '-bf 0');
-    } else if (transcodeMode === 'gpu_amd') {
+    } else if (actualTranscodeMode === 'gpu_amd') {
         inputOptions.unshift('-hwaccel', 'd3d11va');
         outputOptions.push('-c:v h264_amf', '-usage lowlatency', '-g 30', '-bf 0');
-    } else if (transcodeMode === 'auto_h265' || transcodeMode === 'gpu_hybrid') {
-        // Tự động dùng phần cứng để giải mã luồng H.265 (NVDEC/DXVA2/QSV), sau đó nén nhẹ lại H.264 qua CPU
-        // Phương pháp này lách được giới hạn 8 luồng của NVIDIA và bao xài trên mọi loại card
+    } else if (actualTranscodeMode === 'auto_h265' || actualTranscodeMode === 'gpu_hybrid') {
         inputOptions.unshift('-hwaccel', 'auto'); 
         outputOptions.push('-c:v libx264', '-preset ultrafast', '-tune zerolatency', '-g 30', '-bf 0');
-    } else if (transcodeMode === 'cpu') {
+    } else if (actualTranscodeMode === 'cpu') {
         outputOptions.push('-c:v libx264', '-preset ultrafast', '-tune zerolatency', '-g 30', '-bf 0');
     } else {
         outputOptions.push('-c:v copy');
