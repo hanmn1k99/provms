@@ -13,13 +13,13 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
   const [formData, setFormData] = useState({
     Name: '',
     IpAddress: '',
-    Channel: '1',
     Username: 'admin',
     Password: '',
     RtspMainStream: '',
     RtspSubStream: '',
     TranscodeMode: 'copy'
   });
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   const [brand, setBrand] = useState('Hikvision');
 
@@ -279,19 +279,23 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
         <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Quản lý Camera</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button 
+            disabled={isOptimizing}
             onClick={async () => {
-              if (window.confirm('Tối ưu hóa sẽ đăng nhập ngầm vào toàn bộ Camera và ép luồng phụ về H.264 để xem 32 kênh mượt mà. Quá trình có thể mất vài giây. Tiếp tục?')) {
+              if (window.confirm('Tối ưu hóa sẽ đăng nhập ngầm vào toàn bộ Camera và ép luồng phụ về H.264 để xem lưới mượt mà. Quá trình có thể mất một lúc tùy số lượng cam. Tiếp tục?')) {
+                setIsOptimizing(true);
                 try {
                   const res = await axios.post(`http://${window.location.hostname}:3000/api/optimize-cameras`);
                   showToast?.(res.data.message, 'success');
                 } catch (e) {
                   showToast?.('Lỗi tối ưu hóa', 'error');
+                } finally {
+                  setIsOptimizing(false);
                 }
               }
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 500, fontSize: '0.9rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: isOptimizing ? '#94a3b8' : '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: isOptimizing ? 'not-allowed' : 'default', fontWeight: 500, fontSize: '0.9rem' }}
           >
-            <Camera size={16} /> 1-Click Tối Ưu H.264
+            <Camera size={16} /> {isOptimizing ? 'Đang Tối Ưu...' : '1-Click Tối Ưu H.264'}
           </button>
           {selectedIds.length > 0 && (
             <button 

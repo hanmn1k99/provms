@@ -455,41 +455,41 @@ app.use((req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
-app.post('/api/optimize-cameras', (req, res) => {
+app.post('/api/optimize-cameras', async (req, res) => {
     const cameras = db.prepare('SELECT Id, IpAddress, Username, Password, RtspMainStream FROM Cameras').all();
     let successCount = 0;
     
-    cameras.forEach(cam => {
-        if (!cam.IpAddress || !cam.Username || !cam.Password || !cam.RtspMainStream) return;
-        
-        const isDahua = cam.RtspMainStream.includes('cam/realmonitor');
-        let curlCmd = '';
-        
-        if (isDahua) {
-            // Lấy channel từ URL (vd: channel=5)
-            const match = cam.RtspMainStream.match(/channel=(\d+)/);
-            const ch = match ? parseInt(match[1], 10) : 1;
-            const encodeIndex = ch - 1; // Đầu ghi Dahua mảng bắt đầu từ 0
+    const promises = cameras.map(cam => {
+        return new Promise((resolve) => {
+            if (!cam.IpAddress || !cam.Username || !cam.Password || !cam.RtspMainStream) return resolve();
             
-            const url = `http://${cam.IpAddress}/cgi-bin/configManager.cgi?action=setConfig&Encode[${encodeIndex}].ExtraFormat[0].Video.Compression=H.264`;
-            curlCmd = `curl -s --anyauth -u "${cam.Username}:${cam.Password}" "${url}"`;
-        } else {
-            // Lấy channel từ URL Hikvision (vd: Channels/501 -> kênh 5)
-            const match = cam.RtspMainStream.match(/Channels\/(\d+)01/);
-            const ch = match ? match[1] : '1';
-            const subChId = `${ch}02`; // Kênh phụ luôn có đuôi 02
+            const isDahua = cam.RtspMainStream.includes('cam/realmonitor');
+            let curlCmd = '';
             
-            const xml = `<StreamingChannel><Video><videoCodecType>H.264</videoCodecType></Video></StreamingChannel>`;
-            const url = `http://${cam.IpAddress}/ISAPI/Streaming/channels/${subChId}`;
-            curlCmd = `curl -s --anyauth -u "${cam.Username}:${cam.Password}" -X PUT -H "Content-Type: application/xml" -d "${xml}" "${url}"`;
-        }
-        
-        require('child_process').exec(curlCmd, (err) => {
-            if (!err) successCount++;
+            if (isDahua) {
+                const match = cam.RtspMainStream.match(/channel=(\d+)/);
+                const ch = match ? parseInt(match[1], 10) : 1;
+                const encodeIndex = ch - 1; 
+                const url = `http://${cam.IpAddress}/cgi-bin/configManager.cgi?action=setConfig&Encode[${encodeIndex}].ExtraFormat[0].Video.Compression=H.264`;
+                curlCmd = `curl -s --anyauth -u "${cam.Username}:${cam.Password}" "${url}"`;
+            } else {
+                const match = cam.RtspMainStream.match(/Channels\/(\d+)01/);
+                const ch = match ? match[1] : '1';
+                const subChId = `${ch}02`; 
+                const xml = `<StreamingChannel><Video><videoCodecType>H.264</videoCodecType></Video></StreamingChannel>`;
+                const url = `http://${cam.IpAddress}/ISAPI/Streaming/channels/${subChId}`;
+                curlCmd = `curl -s --anyauth -u "${cam.Username}:${cam.Password}" -X PUT -H "Content-Type: application/xml" -d "${xml}" "${url}"`;
+            }
+            
+            require('child_process').exec(curlCmd, (err) => {
+                if (!err) successCount++;
+                resolve();
+            });
         });
     });
 
-    res.json({ success: true, message: `Đã gửi lệnh tối ưu H.264 cho ${cameras.length} luồng phụ qua NVR.` });
+    await Promise.all(promises);
+    res.json({ success: true, message: `Tối ưu hoàn tất! Đã ép luồng phụ H.264 cho ${successCount}/${cameras.length} kênh.` });
 });
 
 // Chạy server API
