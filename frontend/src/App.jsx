@@ -229,6 +229,31 @@ function App() {
               </button>
             )}
           </div>
+
+          {activeTab === 'grid' && (
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginLeft: '10px' }}>
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--card-bg)', padding: '5px 15px', borderRadius: '8px', border: '1px solid var(--border)', userSelect: 'none', WebkitUserSelect: 'none' }}>
+                  <button onClick={() => setCurrentPage(p => Math.max(0, p - 1))} disabled={currentPage === 0} style={{ border: 'none', background: 'none', cursor: 'default', opacity: currentPage === 0 ? 0.5 : 1, fontSize: '1.2rem', color: 'var(--text)' }} draggable={false}>&larr;</button>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 600 }}>Trang {currentPage + 1} / {totalPages}</span>
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))} disabled={currentPage === totalPages - 1} style={{ border: 'none', background: 'none', cursor: 'default', opacity: currentPage === totalPages - 1 ? 0.5 : 1, fontSize: '1.2rem', color: 'var(--text)' }} draggable={false}>&rarr;</button>
+                </div>
+              )}
+              
+              <select 
+                value={gridSize} 
+                onChange={e => setGridSize(Number(e.target.value))}
+                style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)', outline: 'none', cursor: 'pointer', fontWeight: 600, colorScheme: 'dark' }}
+              >
+                <option value={1} style={{ background: '#0f1629', color: '#e2e8f0' }}>1 Camera (1x1)</option>
+                <option value={4} style={{ background: '#0f1629', color: '#e2e8f0' }}>4 Camera (2x2)</option>
+                <option value={9} style={{ background: '#0f1629', color: '#e2e8f0' }}>9 Camera (3x3)</option>
+                <option value={16} style={{ background: '#0f1629', color: '#e2e8f0' }}>16 Camera (4x4)</option>
+                <option value={25} style={{ background: '#0f1629', color: '#e2e8f0' }}>25 Camera (5x5)</option>
+                <option value={32} style={{ background: '#0f1629', color: '#e2e8f0' }}>32 Camera (8x4)</option>
+              </select>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -380,34 +405,7 @@ function App() {
         )}
 
         {activeTab === 'grid' && (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>Giám sát Trực tiếp</div>
-              
-              <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                {totalPages > 1 && (
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--card-bg)', padding: '5px 15px', borderRadius: '8px', border: '1px solid var(--border)', userSelect: 'none', WebkitUserSelect: 'none' }}>
-                    <button onClick={() => setCurrentPage(p => Math.max(0, p - 1))} disabled={currentPage === 0} style={{ border: 'none', background: 'none', cursor: 'default', opacity: currentPage === 0 ? 0.5 : 1, fontSize: '1.2rem', color: 'var(--text)' }} draggable={false}>&larr;</button>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 600 }}>Trang {currentPage + 1} / {totalPages}</span>
-                    <button onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))} disabled={currentPage === totalPages - 1} style={{ border: 'none', background: 'none', cursor: 'default', opacity: currentPage === totalPages - 1 ? 0.5 : 1, fontSize: '1.2rem', color: 'var(--text)' }} draggable={false}>&rarr;</button>
-                  </div>
-                )}
-                
-                <select 
-                  value={gridSize} 
-                  onChange={e => setGridSize(Number(e.target.value))}
-                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text)', outline: 'none', cursor: 'pointer', fontWeight: 600, colorScheme: 'dark' }}
-                >
-                  <option value={1} style={{ background: '#0f1629', color: '#e2e8f0' }}>1 Camera (1x1)</option>
-                  <option value={4} style={{ background: '#0f1629', color: '#e2e8f0' }}>4 Camera (2x2)</option>
-                  <option value={9} style={{ background: '#0f1629', color: '#e2e8f0' }}>9 Camera (3x3)</option>
-                  <option value={16} style={{ background: '#0f1629', color: '#e2e8f0' }}>16 Camera (4x4)</option>
-                  <option value={25} style={{ background: '#0f1629', color: '#e2e8f0' }}>25 Camera (5x5)</option>
-                  <option value={32} style={{ background: '#0f1629', color: '#e2e8f0' }}>32 Camera (8x4)</option>
-                </select>
-              </div>
-            </div>
-
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '5px' }}>
             <div style={{ flex: 1, minHeight: 0 }}>
               <div style={{ 
                 display: 'grid', 
