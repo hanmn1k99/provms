@@ -5,8 +5,8 @@ const db = require('./db');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 const path = require('path');
+
 const fs = require('fs');
-const { spawn } = require('child_process');
 
 // Đổi tên tiến trình trong Task Manager cho chuyên nghiệp
 const customFfmpegPath = path.join(__dirname, 'provms-worker.exe');
@@ -257,52 +257,96 @@ app.post('/api/ptz', (req, res) => {
 // ---------------------------------------------------------
 const activeStreams = new Map();
 
-app.post('/api/stream/start', async (req, res) => {
+app.post('/api/stream/start', (req, res) => {
     const { cameraId, rtspUrl } = req.body;
     
     if (!rtspUrl) {
         return res.status(400).json({ error: 'RTSP URL is missing' });
     }
 
+    // Lấy 8 ký tự cuối cùng của chuỗi Base64 để đảm bảo phân biệt được Main và Sub (khác nhau ở đuôi 101/102)
     const base64Url = Buffer.from(rtspUrl).toString('base64').replace(/[^a-zA-Z0-9]/g, '');
     const urlHash = base64Url.substring(base64Url.length - 12);
     const streamId = `cam_${cameraId}_${urlHash}`;
     
-    // TRỌNG TÂM: Fix lỗi URL chứa @ trong mật khẩu (VD: Hannguyen@113)
-    let safeRtspUrl = rtspUrl;
-    if (safeRtspUrl.startsWith('rtsp://')) {
-        const authSplit = safeRtspUrl.replace('rtsp://', '').split('@');
-        if (authSplit.length > 2) {
-            const hostPath = authSplit.pop();
-            const auth = authSplit.join('@');
-            const authParts = auth.split(':');
-            const user = authParts.shift();
-            const pass = authParts.join(':');
-            safeRtspUrl = `rtsp://${user}:${encodeURIComponent(pass)}@${hostPath}`;
-        }
-    }
-
-    const streamUrl = `ws://${req.hostname}:1984/api/ws?src=${streamId}`;
+    // Sử dụng WebSocket (ws://) thay vì HTTP để vượt qua giới hạn 6 kết nối đồng thời của trình duyệt
+    const flvUrl = `ws://${req.hostname}:8000/live/${streamId}.flv`;
 
     if (activeStreams.has(streamId)) {
         const existing = activeStreams.get(streamId);
-        existing.clients = (existing.clients || 0) + 1;
-        return res.json({ success: true, flvUrl: streamUrl, status: 'already_running' });
+        if (existing.rtspUrl === rtspUrl) {
+            existing.viewers = (existing.viewers || 1) + 1;
+            if (existing.killTimeout) {
+                clearTimeout(existing.killTimeout);
+                existing.killTimeout = null;
+                console.log(`[Stream] Đã hủy lệnh dừng luồng ${streamId} vì có Client kết nối lại.`);
+            }
+            return res.json({ success: true, flvUrl, status: 'already_running' });
+        } else {
+            console.log(`[Stream] Phát hiện Link mới, tắt luồng cũ của Camera ${cameraId}`);
+            existing.command.kill('SIGKILL');
+            activeStreams.delete(streamId);
+        }
     }
 
-    try {
-        await fetch(`http://127.0.0.1:1984/api/streams?name=${streamId}&src=${encodeURIComponent(safeRtspUrl)}`, { method: 'PUT' });
-        
-        activeStreams.set(streamId, { clients: 1, url: safeRtspUrl });
-        console.log(`[Go2RTC] Bắt đầu luồng stream: ${streamId}`);
-        res.json({ success: true, flvUrl: streamUrl, status: 'started' });
-    } catch (error) {
-        console.error('[Go2RTC] Lỗi kết nối go2rtc:', error.message);
-        res.status(500).json({ success: false, message: 'Lỗi khởi tạo stream' });
+    const stmt = db.prepare('SELECT TranscodeMode FROM Cameras WHERE Id = ?');
+    const camInfo = stmt.get(cameraId);
+    const transcodeMode = camInfo ? camInfo.TranscodeMode : 'copy';
+
+    console.log(`[Stream] Khởi động luồng cho Camera ${cameraId}: ${rtspUrl} (Chế độ: ${transcodeMode})`);
+
+    let inputOptions = [
+        '-rtsp_transport tcp', 
+        '-analyzeduration 1000000', // Phân tích 1 giây để khởi động nhanh
+        '-probesize 1000000' // Khung đệm 1MB
+    ];
+
+    let outputOptions = [
+        '-an', 
+        '-f flv'
+    ];
+
+    if (transcodeMode === 'gpu_intel') {
+        inputOptions.unshift('-hwaccel', 'qsv', '-hwaccel_output_format', 'qsv');
+        outputOptions.push('-c:v h264_qsv', '-preset veryfast', '-g 30', '-bf 0');
+    } else if (transcodeMode === 'gpu_nvidia') {
+        inputOptions.unshift('-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda');
+        outputOptions.push('-c:v h264_nvenc', '-preset p1', '-tune ll', '-g 30', '-bf 0');
+    } else if (transcodeMode === 'gpu_amd') {
+        inputOptions.unshift('-hwaccel', 'd3d11va');
+        outputOptions.push('-c:v h264_amf', '-usage lowlatency', '-g 30', '-bf 0');
+    } else if (transcodeMode === 'auto_h265' || transcodeMode === 'gpu_hybrid') {
+        // Tự động dùng phần cứng để giải mã luồng H.265 (NVDEC/DXVA2/QSV), sau đó nén nhẹ lại H.264 qua CPU
+        // Phương pháp này lách được giới hạn 8 luồng của NVIDIA và bao xài trên mọi loại card
+        inputOptions.unshift('-hwaccel', 'auto'); 
+        outputOptions.push('-c:v libx264', '-preset ultrafast', '-tune zerolatency', '-g 30', '-bf 0');
+    } else if (transcodeMode === 'cpu') {
+        outputOptions.push('-c:v libx264', '-preset ultrafast', '-tune zerolatency', '-g 30', '-bf 0');
+    } else {
+        outputOptions.push('-c:v copy');
     }
+
+    const command = ffmpeg(rtspUrl)
+        .inputOptions(inputOptions)
+        .addOptions(outputOptions)
+        .output(`rtmp://localhost:1935/live/${streamId}`)
+        .on('start', (cmd) => console.log(`[FFmpeg] Bắt đầu: ${cmd}`))
+        .on('error', (err) => {
+            console.error(`[FFmpeg] Lỗi luồng ${streamId}: ${err.message}`);
+            activeStreams.delete(streamId);
+        })
+        .on('end', () => {
+            console.log(`[FFmpeg] Kết thúc luồng ${streamId}`);
+            activeStreams.delete(streamId);
+        });
+
+    command.run();
+    activeStreams.set(streamId, { command, rtspUrl, viewers: 1 });
+
+    res.json({ success: true, flvUrl, status: 'started' });
 });
 
-app.post('/api/stream/stop', async (req, res) => {
+app.post('/api/stream/stop', (req, res) => {
     const { cameraId, rtspUrl } = req.body;
     if (!rtspUrl) return res.json({ success: true });
 
@@ -311,17 +355,17 @@ app.post('/api/stream/stop', async (req, res) => {
     const streamId = `cam_${cameraId}_${urlHash}`;
 
     if (activeStreams.has(streamId)) {
-        const streamData = activeStreams.get(streamId);
-        streamData.clients--;
+        const existing = activeStreams.get(streamId);
+        existing.viewers = (existing.viewers || 1) - 1;
+        console.log(`[Stream] Yêu cầu dừng từ Client. Số viewer còn lại của ${streamId}: ${existing.viewers}`);
         
-        if (streamData.clients <= 0) {
-            try {
-                await fetch(`http://127.0.0.1:1984/api/streams?name=${streamId}`, { method: 'DELETE' });
-                console.log(`[Go2RTC] Đã dừng luồng: ${streamId}`);
-            } catch (err) {
-                console.error('[Go2RTC] Lỗi xóa luồng:', err.message);
-            }
-            activeStreams.delete(streamId);
+        if (existing.viewers <= 0) {
+            console.log(`[Stream] Lên lịch dừng luồng ${streamId} sau 3 giây...`);
+            existing.killTimeout = setTimeout(() => {
+                console.log(`[Stream] Đã hết 3 giây, dừng hẳn luồng ${streamId}.`);
+                existing.command.kill('SIGKILL');
+                activeStreams.delete(streamId);
+            }, 3000);
         }
     }
     res.json({ success: true });
@@ -397,15 +441,53 @@ app.use((req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
+app.post('/api/optimize-cameras', (req, res) => {
+    const cameras = db.prepare('SELECT Id, IpAddress, Username, Password, RtspMainStream FROM Cameras').all();
+    let successCount = 0;
+    
+    cameras.forEach(cam => {
+        if (!cam.IpAddress || !cam.Username || !cam.Password) return;
+        const isDahua = cam.RtspMainStream && cam.RtspMainStream.includes('cam/realmonitor');
+        
+        let curlCmd = '';
+        if (isDahua) {
+            const url = `http://${cam.IpAddress}/cgi-bin/configManager.cgi?action=setConfig&Encode[0].ExtraFormat[0].Video.Compression=H.264`;
+            curlCmd = `curl -s --anyauth -u "${cam.Username}:${cam.Password}" "${url}"`;
+        } else {
+            const xml = `<StreamingChannel><Video><videoCodecType>H.264</videoCodecType></Video></StreamingChannel>`;
+            const url = `http://${cam.IpAddress}/ISAPI/Streaming/channels/102`;
+            curlCmd = `curl -s --anyauth -u "${cam.Username}:${cam.Password}" -X PUT -H "Content-Type: application/xml" -d "${xml}" "${url}"`;
+        }
+        
+        require('child_process').exec(curlCmd, (err) => {
+            if (!err) successCount++;
+        });
+    });
+
+    res.json({ success: true, message: `Đã gửi lệnh tối ưu H.264 ngầm tới ${cameras.length} cameras.` });
+});
+
 // Chạy server API
 const PORT = 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Backend API running on http://0.0.0.0:${PORT}`);
 });
 
-// Khởi chạy Go2RTC siêu nhẹ thay cho NMS
-const go2rtcPath = path.join(__dirname, 'go2rtc.exe');
-const go2rtcProcess = spawn(go2rtcPath, [], { stdio: 'ignore' });
-go2rtcProcess.on('error', (err) => console.error('[Go2RTC] Lỗi khởi chạy:', err));
-console.log('[Go2RTC] Đang chạy ngầm ở port 1984');
+// Khởi tạo Node Media Server để chạy FLV streaming (Relay từ RTSP sang HTTP-FLV)
+const config = {
+    rtmp: {
+        port: 1935,
+        chunk_size: 60000,
+        gop_cache: false,
+        ping: 30,
+        ping_timeout: 60
+    },
+    http: {
+        port: 8000,
+        allow_origin: '*'
+    }
+};
+
+const nms = new NodeMediaServer(config);
+nms.run();
 console.log('Node Media Server (FLV) running on port 8000');

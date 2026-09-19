@@ -278,6 +278,21 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Quản lý Camera</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={async () => {
+              if (window.confirm('Tối ưu hóa sẽ đăng nhập ngầm vào toàn bộ Camera và ép luồng phụ về H.264 để xem 32 kênh mượt mà. Quá trình có thể mất vài giây. Tiếp tục?')) {
+                try {
+                  const res = await axios.post(`http://${window.location.hostname}:3000/api/optimize-cameras`);
+                  showToast?.(res.data.message, 'success');
+                } catch (e) {
+                  showToast?.('Lỗi tối ưu hóa', 'error');
+                }
+              }
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 500, fontSize: '0.9rem' }}
+          >
+            <Camera size={16} /> 1-Click Tối Ưu H.264
+          </button>
           {selectedIds.length > 0 && (
             <button 
               onClick={handleBulkDelete}
