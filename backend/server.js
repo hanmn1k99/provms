@@ -447,21 +447,9 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`Backend API running on http://0.0.0.0:${PORT}`);
 });
 
-// Khởi tạo Node Media Server để chạy FLV streaming (Relay từ RTSP sang HTTP-FLV)
-const config = {
-    rtmp: {
-        port: 1935,
-        chunk_size: 60000,
-        gop_cache: false,
-        ping: 30,
-        ping_timeout: 60
-    },
-    http: {
-        port: 8000,
-        allow_origin: '*'
-    }
-};
-
-const nms = new NodeMediaServer(config);
-nms.run();
+// Khởi chạy Go2RTC siêu nhẹ thay cho NMS
+const go2rtcPath = path.join(__dirname, 'go2rtc.exe');
+const go2rtcProcess = spawn(go2rtcPath, [], { stdio: 'ignore' });
+go2rtcProcess.on('error', (err) => console.error('[Go2RTC] Lỗi khởi chạy:', err));
+console.log('[Go2RTC] Đang chạy ngầm ở port 1984');
 console.log('Node Media Server (FLV) running on port 8000');

@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import FlvPlayer from './FlvPlayer';
 import { Camera, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 
 const VideoCell = ({ camera, isMainStream = false }) => {
-  const [flvUrl, setFlvUrl] = useState(null);
+  const [streamUrl, setStreamUrl] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Tải thư viện video-rtc của Go2RTC
+  useEffect(() => {
+    if (!document.getElementById('video-rtc-script')) {
+      const script = document.createElement('script');
+      script.id = 'video-rtc-script';
+      script.src = `http://${window.location.hostname}:1984/video-rtc.js`;
+      document.head.appendChild(script);
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -14,15 +23,19 @@ const VideoCell = ({ camera, isMainStream = false }) => {
       setLoading(true);
       const urlToPlay = isMainStream ? camera.RtspMainStream : (camera.RtspSubStream || camera.RtspMainStream);
       
-      // Gọi API yêu cầu Backend chạy FFmpeg cho camera này
       axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
         cameraId: camera.Id,
         rtspUrl: urlToPlay
       })
       .then(res => {
         if (res.data.success && isMounted) {
-          setFlvUrl(res.data.flvUrl);
-          setLoading(false);
+          // Delay nhỏ để go2rtc khởi tạo xong luồng nội bộ
+          setTimeout(() => {
+            if (isMounted) {
+               setStreamUrl(res.data.flvUrl); 
+               setLoading(false);
+            }
+          }, 1000);
         }
       })
       .catch(err => {
@@ -61,13 +74,21 @@ const VideoCell = ({ camera, isMainStream = false }) => {
 
   return (
     <>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0, backgroundColor: 'black' }}>
         {loading ? (
-          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'black' }}>
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.875rem' }}>CONNECTING...</span>
           </div>
         ) : (
-          <FlvPlayer url={flvUrl} isMuted={true} />
+          <>
+            <div 
+              style={{ width: '100%', height: '100%' }}
+              dangerouslySetInnerHTML={{
+                __html: `<video is="video-rtc" mode="mse" src="${streamUrl}" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>`
+              }}
+            />
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5, background: 'transparent' }} />
+          </>
         )}
       </div>
 

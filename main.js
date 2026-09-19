@@ -3,6 +3,10 @@ const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
 
+// Mở khóa Hardware Acceleration (GPU) cho H.265 (HEVC) trên Chromium
+app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+app.commandLine.appendSwitch('ignore-certificate-errors', 'true');
+
 // Đổi đường dẫn lưu dữ liệu sang %APPDATA%\minhhan.net\provms
 app.setPath('userData', path.join(app.getPath('appData'), 'minhhan.net', 'provms'));
 
