@@ -73,6 +73,10 @@ const VideoCell = ({ camera, isMainStream = false }) => {
       if (wsRef.current) {
         wsRef.current.close();
       }
+      if (canvasRef.current && !isMainStream) {
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
     };
   }, [camera, isMainStream]);
 

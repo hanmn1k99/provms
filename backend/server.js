@@ -281,8 +281,9 @@ const wss = new WebSocket.Server({ port: 3001 }, () => {
     console.log('MJPEG WebSocket Server running on port 3001');
 });
 
+const activeMjpegStreams = new Map(); // key: rtspUrl, value: { command, clients: Set, lastFrame: Buffer }
+
 wss.on('connection', (ws, req) => {
-    // URL format: /?rtspUrl=...
     const urlParams = new URLSearchParams(req.url.split('?')[1]);
     const rtspUrl = urlParams.get('rtspUrl');
     
@@ -291,47 +292,80 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    console.log(`[MJPEG-WS] Khởi động luồng Grid View: ${rtspUrl}`);
+    if (!activeMjpegStreams.has(rtspUrl)) {
+        console.log(`[MJPEG-WS] Khởi tạo luồng mới từ NVR: ${rtspUrl}`);
+        
+        const command = ffmpeg(rtspUrl)
+            .inputOptions([
+                '-rtsp_transport tcp',
+                '-hwaccel auto',
+                '-analyzeduration 1000000',
+                '-probesize 1000000'
+            ])
+            .outputOptions([
+                '-an',
+                '-c:v mjpeg',
+                '-q:v 5',
+                '-r 15',
+                '-f image2pipe'
+            ])
+            .on('error', (err) => {
+                console.error(`[MJPEG-WS] Lỗi FFmpeg: ${err.message}`);
+                const streamInfo = activeMjpegStreams.get(rtspUrl);
+                if (streamInfo) {
+                    streamInfo.clients.forEach(c => c.close());
+                    activeMjpegStreams.delete(rtspUrl);
+                }
+            });
 
-    const command = ffmpeg(rtspUrl)
-        .inputOptions([
-            '-rtsp_transport tcp',
-            '-hwaccel auto',
-            '-analyzeduration 1000000',
-            '-probesize 1000000'
-        ])
-        .outputOptions([
-            '-an',
-            '-c:v mjpeg',
-            '-q:v 5',
-            '-r 15',
-            '-f image2pipe' // pipe raw JPEGs
-        ])
-        .on('error', (err) => {
-            console.error(`[MJPEG-WS] Lỗi: ${err.message}`);
-            ws.close();
+        const pipeStream = command.pipe();
+        
+        const streamInfo = {
+            command,
+            clients: new Set(),
+            buffer: Buffer.alloc(0)
+        };
+        activeMjpegStreams.set(rtspUrl, streamInfo);
+
+        pipeStream.on('data', (chunk) => {
+            const info = activeMjpegStreams.get(rtspUrl);
+            if (!info) return;
+
+            info.buffer = Buffer.concat([info.buffer, chunk]);
+            
+            let endIdx;
+            while ((endIdx = info.buffer.indexOf(Buffer.from([0xFF, 0xD9]))) !== -1) {
+                const frame = info.buffer.slice(0, endIdx + 2);
+                
+                // Broadcast to all active WebSocket clients for this camera
+                info.clients.forEach(clientWs => {
+                    if (clientWs.readyState === WebSocket.OPEN) {
+                        clientWs.send(frame);
+                    }
+                });
+                
+                info.buffer = info.buffer.slice(endIdx + 2);
+            }
         });
+    }
 
-    const pipeStream = command.pipe();
-    
-    let buffer = Buffer.alloc(0);
-    pipeStream.on('data', (chunk) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        
-        buffer = Buffer.concat([buffer, chunk]);
-        
-        // Find JPEG end marker FF D9
-        let endIdx;
-        while ((endIdx = buffer.indexOf(Buffer.from([0xFF, 0xD9]))) !== -1) {
-            const frame = buffer.slice(0, endIdx + 2);
-            ws.send(frame);
-            buffer = buffer.slice(endIdx + 2);
-        }
-    });
+    // Add this client to the stream
+    const streamInfo = activeMjpegStreams.get(rtspUrl);
+    streamInfo.clients.add(ws);
+    console.log(`[MJPEG-WS] Client kết nối. Camera: ${rtspUrl}. Tổng người xem: ${streamInfo.clients.size}`);
 
     ws.on('close', () => {
-        console.log(`[MJPEG-WS] Client ngắt kết nối, dừng stream.`);
-        command.kill('SIGKILL');
+        const info = activeMjpegStreams.get(rtspUrl);
+        if (info) {
+            info.clients.delete(ws);
+            console.log(`[MJPEG-WS] Client ngắt kết nối. Camera: ${rtspUrl}. Còn lại: ${info.clients.size}`);
+            
+            if (info.clients.size === 0) {
+                console.log(`[MJPEG-WS] Không còn ai xem, tắt luồng NVR để tiết kiệm tài nguyên.`);
+                info.command.kill('SIGKILL');
+                activeMjpegStreams.delete(rtspUrl);
+            }
+        }
     });
 });
 
