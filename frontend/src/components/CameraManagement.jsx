@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Plus, Edit, Trash2, X, Save, Download, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Save, Download, Upload, Camera } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 export default function CameraManagement({ cameras, onCamerasUpdated, showToast }) {
