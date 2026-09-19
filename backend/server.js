@@ -264,7 +264,7 @@ app.get('/api/stream/mjpeg', (req, res) => {
     console.log(`[MJPEG] Khởi động luồng Grid View: ${rtspUrl}`);
 
     res.writeHead(200, {
-        'Content-Type': 'multipart/x-mixed-replace; boundary=myboundary',
+        'Content-Type': 'multipart/x-mixed-replace; boundary=ffmpeg',
         'Cache-Control': 'no-cache',
         'Connection': 'close',
         'Pragma': 'no-cache'
