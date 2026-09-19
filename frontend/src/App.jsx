@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import VideoCell from './components/VideoCell';
 import Settings from './components/Settings';
-import { Camera, Shield, MonitorUp } from 'lucide-react';
+import { Camera, Shield, MonitorUp, LogOut } from 'lucide-react';
 import './login.css';
 import './admin.css';
 import './App.css';
@@ -212,87 +212,83 @@ function App() {
       )}
 
       {/* Thanh Menu Header */}
-      <header style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', background: 'var(--card-bg)', borderBottom: '1px solid var(--border)', zIndex: 10, flexWrap: 'nowrap', gap: '15px', overflowX: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <img src="/logo.png" alt="ProVMS Logo" style={{ height: '32px', objectFit: 'contain' }} />
-            <h1 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text)', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>ProVMS Enterprise</h1>
+      <header className="main-header">
+        <div className="header-group">
+          <div className="header-subgroup">
+            <img src="/logo.png" alt="ProVMS Logo" className="logo-img" />
+            <h1 className="header-title hide-text-1400">ProVMS Enterprise</h1>
           </div>
           
-          <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
-            <button onClick={() => setActiveTab('grid')} style={{ padding: '8px 12px', background: activeTab === 'grid' ? 'var(--accent)' : 'transparent', color: activeTab === 'grid' ? '#fff' : 'var(--text)', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <div className="header-subgroup">
+            <button onClick={() => setActiveTab('grid')} className={`header-btn ${activeTab === 'grid' ? 'active' : 'inactive'}`}>
               Live View
             </button>
             {isLoggedIn && (
-              <button onClick={() => setActiveTab('settings')} style={{ padding: '8px 12px', background: activeTab === 'settings' ? 'var(--accent)' : 'transparent', color: activeTab === 'settings' ? '#fff' : 'var(--text)', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                Cài đặt Hệ thống
+              <button onClick={() => setActiveTab('settings')} className={`header-btn ${activeTab === 'settings' ? 'active' : 'inactive'}`}>
+                Cài đặt
               </button>
             )}
           </div>
           
           {activeTab === 'grid' && (
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0, marginLeft: '10px' }}>
+            <div className="header-subgroup" style={{ marginLeft: '5px' }}>
               {totalPages > 1 && (
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--bg)', padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--border)', userSelect: 'none', WebkitUserSelect: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <button onClick={() => setCurrentPage(p => Math.max(0, p - 1))} disabled={currentPage === 0} style={{ border: 'none', background: 'none', cursor: 'default', opacity: currentPage === 0 ? 0.5 : 1, fontSize: '1.1rem', color: 'var(--text)', padding: '0 5px' }} draggable={false}>&larr;</button>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Trang {currentPage + 1} / {totalPages}</span>
-                  <button onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))} disabled={currentPage === totalPages - 1} style={{ border: 'none', background: 'none', cursor: 'default', opacity: currentPage === totalPages - 1 ? 0.5 : 1, fontSize: '1.1rem', color: 'var(--text)', padding: '0 5px' }} draggable={false}>&rarr;</button>
+                <div className="header-subgroup" style={{ background: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <button onClick={() => setCurrentPage(p => Math.max(0, p - 1))} disabled={currentPage === 0} style={{ border: 'none', background: 'none', opacity: currentPage === 0 ? 0.5 : 1, fontSize: '1.1rem', color: 'var(--text)', padding: '0 5px', cursor: 'default' }}>&larr;</button>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{currentPage + 1}/{totalPages}</span>
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))} disabled={currentPage === totalPages - 1} style={{ border: 'none', background: 'none', opacity: currentPage === totalPages - 1 ? 0.5 : 1, fontSize: '1.1rem', color: 'var(--text)', padding: '0 5px', cursor: 'default' }}>&rarr;</button>
                 </div>
               )}
               
               <select 
                 value={gridSize} 
                 onChange={e => setGridSize(Number(e.target.value))}
-                style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', colorScheme: 'dark', whiteSpace: 'nowrap', flexShrink: 0 }}
+                className="header-select"
               >
-                <option value={1}>1 Camera (1x1)</option>
-                <option value={4}>4 Camera (2x2)</option>
-                <option value={9}>9 Camera (3x3)</option>
-                <option value={16}>16 Camera (4x4)</option>
-                <option value={25}>25 Camera (5x5)</option>
-                <option value={32}>32 Camera (8x4)</option>
-                <option value={36}>36 Camera (6x6)</option>
-                <option value={64}>64 Camera (8x8)</option>
+                <option value={1}>1 Cam</option>
+                <option value={4}>4 Cam</option>
+                <option value={9}>9 Cam</option>
+                <option value={16}>16 Cam</option>
+                <option value={25}>25 Cam</option>
+                <option value={32}>32 Cam</option>
+                <option value={36}>36 Cam</option>
+                <option value={64}>64 Cam</option>
               </select>
             </div>
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexShrink: 0 }}>
+        <div className="header-group">
           <button 
             onClick={() => window.open(window.location.origin + '?mode=viewer', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no')}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '6px 12px', borderRadius: '6px', cursor: 'default', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
+            className="header-btn header-btn-outline"
           >
             <MonitorUp size={16} />
-            Mở màn hình phụ
+            <span className="hide-text-1400">Mở màn phụ</span>
           </button>
 
           {isLoggedIn ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center', flexShrink: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', lineHeight: '1' }}>{currentUser?.FullName || 'Quản trị viên'}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginTop: '4px' }}>@{currentUser?.Username}</div>
+            <div className="header-subgroup">
+              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }} className="hide-text-1200">
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', lineHeight: '1' }}>{currentUser?.FullName || 'Admin'}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>@{currentUser?.Username}</div>
               </div>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }}>
+              <div className="avatar-circle">
                 <Shield size={16} />
               </div>
-              <button 
-                onClick={handleLogout}
-                style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 12px', borderRadius: '6px', cursor: 'default', fontSize: '0.85rem', fontWeight: 600, transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0 }}
-                onMouseOver={e => { e.currentTarget.style.background = 'var(--danger)'; e.currentTarget.style.borderColor = 'var(--danger)'; e.currentTarget.style.color = '#fff'; }}
-                onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text)'; }}
-              >
-                Đăng xuất
+              <button onClick={handleLogout} className="header-btn header-btn-danger">
+                <LogOut size={14} />
+                <span className="hide-text-1200">Đăng xuất</span>
               </button>
             </div>
           ) : (
             needsSetup ? (
-              <button onClick={() => setActiveTab('setup')} style={{ padding: '6px 12px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                Thiết lập Hệ thống
+              <button onClick={() => setActiveTab('setup')} className="header-btn active">
+                Thiết lập
               </button>
             ) : (
-              <button onClick={() => setActiveTab('login')} style={{ padding: '6px 12px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                Đăng nhập Quản trị
+              <button onClick={() => setActiveTab('login')} className="header-btn active">
+                Đăng nhập
               </button>
             )
           )}

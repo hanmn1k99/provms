@@ -17,3 +17,119 @@ body { background: #0b0f1a; color: #e2e8f0; font-family: 'Inter', -apple-system,
 }
 .ptz-btn:hover { background: rgba(255,255,255,0.2); }
 .ptz-btn:active { background: #3b82f6; border-color: #3b82f6; }
+.main-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+  white-space: nowrap;
+  gap: 10px;
+}
+.header-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-shrink: 0;
+}
+.header-subgroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.header-btn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  border: none;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.header-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.header-btn.inactive {
+  background: transparent;
+  color: var(--text);
+}
+.header-btn-outline {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+.header-btn-danger {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  transition: all 0.2s;
+}
+.header-btn-danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.header-select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color-scheme: dark;
+}
+.header-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+.logo-img {
+  height: 32px;
+  object-fit: contain;
+}
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1400px) {
+  .main-header { padding: 8px 10px; gap: 8px; }
+  .header-group { gap: 10px; }
+  .header-subgroup { gap: 6px; }
+  .header-btn { padding: 6px 10px; font-size: 0.8rem; gap: 4px; }
+  .header-select { padding: 4px 8px; font-size: 0.8rem; }
+  .header-title { font-size: 1rem; }
+  .logo-img { height: 26px; }
+  .avatar-circle { width: 28px; height: 28px; }
+  .hide-text-1400 { display: none !important; }
+}
+
+@media (max-width: 1200px) {
+  .main-header { padding: 6px 5px; gap: 5px; }
+  .header-group { gap: 6px; }
+  .header-subgroup { gap: 4px; }
+  .header-btn { padding: 4px 8px; font-size: 0.75rem; }
+  .header-select { padding: 2px 6px; font-size: 0.75rem; }
+  .logo-img { height: 22px; }
+  .hide-text-1200 { display: none !important; }
+}
