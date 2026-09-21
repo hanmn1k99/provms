@@ -42,7 +42,7 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    icon: path.join(__dirname, 'frontend/public/favicon.png'),
+    icon: path.join(__dirname, 'frontend/dist/favicon.png'),
     autoHideMenuBar: true,
     show: false // Don't show immediately
   });
@@ -66,7 +66,7 @@ function createWindow() {
 }
 
 function createTray() {
-  const iconPath = path.join(__dirname, 'frontend/public/favicon.png');
+  const iconPath = path.join(__dirname, 'frontend/dist/favicon.png');
   tray = new Tray(iconPath);
   
   const contextMenu = Menu.buildFromTemplate([
