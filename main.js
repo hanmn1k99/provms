@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -12,6 +12,8 @@ app.setPath('userData', path.join(app.getPath('appData'), 'minhhan.net', 'provms
 
 let mainWindow;
 let serverProcess;
+let tray = null;
+app.isQuiting = false;
 
 // Cấu hình IPC cho Auto Start
 ipcMain.handle('get-auto-start', () => {
@@ -21,7 +23,11 @@ ipcMain.handle('get-auto-start', () => {
 ipcMain.handle('set-auto-start', (event, enabled) => {
     app.setLoginItemSettings({
         openAtLogin: enabled,
-        path: app.getPath('exe')
+        path: app.getPath('exe'),
+        args: [
+          '--processStart', `"${app.name}"`,
+          '--process-start-args', `"--hidden"`
+        ]
     });
     return app.getLoginItemSettings().openAtLogin;
 });
@@ -37,13 +43,51 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     },
     icon: path.join(__dirname, 'frontend/public/favicon.png'),
-    autoHideMenuBar: true
+    autoHideMenuBar: true,
+    show: false // Don't show immediately
   });
 
   mainWindow.loadURL('http://localhost:3000');
   
-  mainWindow.on('closed', function () {
-    mainWindow = null;
+  // Only show if not started hidden
+  mainWindow.once('ready-to-show', () => {
+    if (!process.argv.includes('--hidden')) {
+      mainWindow.show();
+    }
+  });
+
+  mainWindow.on('close', function (event) {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+    return false;
+  });
+}
+
+function createTray() {
+  const iconPath = path.join(__dirname, 'frontend/public/favicon.png');
+  tray = new Tray(iconPath);
+  
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Mở ProVMS', click: () => { mainWindow.show(); } },
+    { type: 'separator' },
+    { label: 'Thoát hoàn toàn', click: () => {
+        app.isQuiting = true;
+        app.quit();
+      } 
+    }
+  ]);
+  
+  tray.setToolTip('ProVMS Enterprise');
+  tray.setContextMenu(contextMenu);
+  
+  tray.on('click', () => {
+    if (mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow.show();
+    }
   });
 }
 
@@ -76,11 +120,13 @@ app.on('ready', () => {
     stdio: 'inherit'
   });
 
+  createTray();
   setTimeout(createWindow, 3000); 
 });
 
 app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit();
+  // Tránh tự động tắt trên Windows khi đóng cửa sổ
+  // Vì chúng ta muốn nó chạy ngầm dưới system tray
 });
 
 app.on('will-quit', () => {
