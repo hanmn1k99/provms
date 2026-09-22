@@ -34,21 +34,39 @@ const VideoCell = ({ camera, isMainStream = false }) => {
         // Sử dụng WebSocket cho Sub Stream (Grid View) để tránh giới hạn 6 connection của HTTP
         const wsUrl = `ws://${window.location.hostname}:3001/?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`;
         const ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer'; // Tránh dùng disk-backed Blob, giảm lag I/O
         wsRef.current = ws;
 
         ws.onopen = () => {
           if (isMounted) setLoading(false);
         };
 
+        let isDrawing = false;
+
         ws.onmessage = async (event) => {
-          if (canvasRef.current && event.data instanceof Blob) {
+          // Nút thắt cổ chai: Drop frame nếu trình duyệt đang bận vẽ frame trước
+          if (isDrawing || !canvasRef.current) return; 
+
+          isDrawing = true;
+          try {
             const canvas = canvasRef.current;
-            const ctx = canvas.getContext('2d');
-            const bitmap = await createImageBitmap(event.data);
-            canvas.width = bitmap.width;
-            canvas.height = bitmap.height;
+            const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true }); // Tối ưu phần cứng
+            
+            const blob = new Blob([event.data], { type: 'image/jpeg' });
+            const bitmap = await createImageBitmap(blob);
+            
+            // Chỉ cập nhật kích thước 1 lần đầu để tránh trigger Reflow/Layout (rất nặng)
+            if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+              canvas.width = bitmap.width;
+              canvas.height = bitmap.height;
+            }
+            
             ctx.drawImage(bitmap, 0, 0);
             bitmap.close();
+          } catch (e) {
+            // Bỏ qua lỗi decode
+          } finally {
+            isDrawing = false;
           }
         };
 
