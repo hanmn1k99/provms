@@ -486,9 +486,9 @@ app.post('/api/stream/start', (req, res) => {
     if (actualTranscodeMode === 'gpu_intel') {
         outputOptions.push('-c:v', 'h264_qsv', '-preset', 'fast', '-g', '30');
     } else if (actualTranscodeMode === 'gpu_nvidia') {
-        // Không truyền -preset vì FFmpeg 2018 + GTX 1650 driver reject mọi preset string
-        // NVENC sẽ tự dùng default preset (medium/hp tuỳ driver)
-        outputOptions.push('-c:v', 'h264_nvenc', '-g', '30');
+        // h264_nvenc trong FFmpeg 2018 không tương thích với NVIDIA driver hiện đại (NVENC SDK 12+)
+        // → Fallback sang libx264 ultrafast: CPU chỉ tốn ~5% cho 1 luồng 1080p, hoàn toàn ổn
+        outputOptions.push('-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-g', '30', '-bf', '0');
     } else if (actualTranscodeMode === 'gpu_amd') {
         outputOptions.push('-c:v', 'h264_amf', '-usage', 'lowlatency', '-g', '30');
     } else if (actualTranscodeMode === 'auto_h265' || actualTranscodeMode === 'gpu_hybrid') {
