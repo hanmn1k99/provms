@@ -447,16 +447,16 @@ app.post('/api/stream/start', (req, res) => {
     console.log(`[Stream] Khởi động luồng cho Camera ${cameraId}: ${rtspUrl} (Chế độ: ${transcodeMode})`);
 
     let inputOptions = [
-        '-rtsp_transport tcp',
-        '-fflags nobuffer',
-        '-flags low_delay',
-        '-analyzeduration 100000', // Phân tích 0.1 giây để khởi động siêu tốc
-        '-probesize 100000' // Khung đệm siêu nhỏ
+        '-rtsp_transport', 'tcp',
+        '-fflags', 'nobuffer',
+        '-flags', 'low_delay',
+        '-analyzeduration', '1000000', 
+        '-probesize', '5000000'
     ];
 
     let outputOptions = [
         '-an', 
-        '-f flv'
+        '-f', 'flv'
     ];
 
     // Tự động phân luồng (Smart Routing):
@@ -475,22 +475,26 @@ app.post('/api/stream/start', (req, res) => {
         console.log(`[Stream] Phát hiện Luồng PHỤ (H.264). Kích hoạt Direct Copy (0% CPU).`);
     }
 
+    // Đảm bảo pixel format tương thích với các bộ nén phần cứng (hầu hết đều yêu cầu nv12 hoặc yuv420p)
+    // Nếu NVR đẩy luồng H.265 10-bit, nó sẽ crash nếu không convert về 8-bit nv12
+    const hwFilters = ['-vf', 'format=nv12'];
+
     if (actualTranscodeMode === 'gpu_intel') {
-        inputOptions.unshift('-hwaccel', 'qsv', '-hwaccel_output_format', 'qsv');
-        outputOptions.push('-c:v h264_qsv', '-preset veryfast', '-g 30', '-bf 0');
+        inputOptions.unshift('-hwaccel', 'qsv');
+        outputOptions.push('-c:v', 'h264_qsv', '-preset', 'veryfast', ...hwFilters, '-g', '30');
     } else if (actualTranscodeMode === 'gpu_nvidia') {
-        inputOptions.unshift('-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda');
-        outputOptions.push('-c:v h264_nvenc', '-preset p1', '-tune ll', '-g 30', '-bf 0');
+        inputOptions.unshift('-hwaccel', 'cuda');
+        outputOptions.push('-c:v', 'h264_nvenc', '-preset', 'p1', ...hwFilters, '-g', '30');
     } else if (actualTranscodeMode === 'gpu_amd') {
         inputOptions.unshift('-hwaccel', 'd3d11va');
-        outputOptions.push('-c:v h264_amf', '-usage lowlatency', '-g 30', '-bf 0');
+        outputOptions.push('-c:v', 'h264_amf', '-usage', 'lowlatency', ...hwFilters, '-g', '30');
     } else if (actualTranscodeMode === 'auto_h265' || actualTranscodeMode === 'gpu_hybrid') {
         inputOptions.unshift('-hwaccel', 'auto'); 
-        outputOptions.push('-c:v libx264', '-preset ultrafast', '-tune zerolatency', '-g 30', '-bf 0');
+        outputOptions.push('-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-g', '30', '-bf', '0');
     } else if (actualTranscodeMode === 'cpu') {
-        outputOptions.push('-c:v libx264', '-preset ultrafast', '-tune zerolatency', '-g 30', '-bf 0');
+        outputOptions.push('-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-g', '30', '-bf', '0');
     } else {
-        outputOptions.push('-c:v copy');
+        outputOptions.push('-c:v', 'copy');
     }
 
     const command = ffmpeg(rtspUrl)
