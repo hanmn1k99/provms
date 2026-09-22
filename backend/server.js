@@ -286,11 +286,8 @@ const activeMjpegStreams = new Map(); // key: rtspUrl, value: { command, clients
 // Hàm broadcast bất đồng bộ — không block event loop khi nhiều tab
 function broadcastFrame(clients, frame) {
     clients.forEach(clientWs => {
-        if (clientWs.readyState === WebSocket.OPEN) {
-            // setImmediate: nhường event loop giữa mỗi lần gửi, tránh tắc nghẽn
-            setImmediate(() => {
-                try { clientWs.send(frame); } catch (e) {}
-            });
+        if (clientWs.readyState === 1 /* WebSocket.OPEN */) {
+            try { clientWs.send(frame, { binary: true }); } catch (e) {}
         }
     });
 }
@@ -313,23 +310,23 @@ wss.on('connection', (ws, req) => {
         const transcodeMode = settingObj ? settingObj.Value : 'gpu_hybrid';
 
         // Chọn hwaccel decode phù hợp với phần cứng
-        let hwDecodeOpts = ['-hwaccel auto']; // fallback mặc định
+        let hwDecodeOpts = ['-hwaccel', 'auto']; // fallback mặc định
         if (transcodeMode === 'gpu_intel') {
-            hwDecodeOpts = ['-hwaccel qsv', '-c:v hevc_qsv'];  // iGPU Intel decode H.265
+            hwDecodeOpts = ['-hwaccel', 'qsv']; 
         } else if (transcodeMode === 'gpu_nvidia') {
-            hwDecodeOpts = ['-hwaccel cuda', '-hwaccel_output_format cuda', '-c:v hevc_cuvid']; // NVDEC decode
+            hwDecodeOpts = ['-hwaccel', 'cuda']; 
         } else if (transcodeMode === 'gpu_amd') {
-            hwDecodeOpts = ['-hwaccel d3d11va'];  // DirectX VA decode
+            hwDecodeOpts = ['-hwaccel', 'd3d11va'];
         }
 
         const command = ffmpeg(rtspUrl)
             .inputOptions([
-                '-rtsp_transport tcp',
+                '-rtsp_transport', 'tcp',
                 ...hwDecodeOpts,
-                '-fflags nobuffer',
-                '-flags low_delay',
-                '-analyzeduration 50000',
-                '-probesize 50000'
+                '-fflags', 'nobuffer',
+                '-flags', 'low_delay',
+                '-analyzeduration', '50000',
+                '-probesize', '50000'
             ])
             .outputOptions([
                 '-an',
