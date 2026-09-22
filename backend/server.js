@@ -5,8 +5,14 @@ const db = require('./db');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 const path = require('path');
+const os = require('os');
 
 const fs = require('fs');
+
+// Thư mục log chuẩn Windows: %APPDATA%\ProVMS Enterprise\
+const LOG_DIR = path.join(os.homedir(), 'AppData', 'Roaming', 'ProVMS Enterprise');
+const FFMPEG_LOG_PATH = path.join(LOG_DIR, 'ffmpeg.log');
+if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
 // Đổi tên tiến trình trong Task Manager cho chuyên nghiệp
 const customFfmpegPath = path.join(__dirname, 'provms-worker.exe');
@@ -492,17 +498,30 @@ app.post('/api/stream/start', (req, res) => {
         outputOptions.push('-c:v', 'copy');
     }
 
+    const logLine = (msg) => {
+        const ts = new Date().toLocaleString('vi-VN');
+        try { fs.appendFileSync(FFMPEG_LOG_PATH, `[${ts}] ${msg}\n`); } catch(e) {}
+    };
+
     const command = ffmpeg(rtspUrl)
         .inputOptions(inputOptions)
         .addOptions(outputOptions)
         .output(`rtmp://localhost:1935/live/${streamId}`)
-        .on('start', (cmd) => console.log(`[FFmpeg] Bắt đầu: ${cmd}`))
+        .on('start', (cmd) => {
+            console.log(`[FFmpeg] Bắt đầu: ${cmd}`);
+            logLine(`--- START ${streamId} ---`);
+            logLine(`CMD: ${cmd}`);
+        })
+        .on('stderr', (line) => logLine(line))
         .on('error', (err) => {
             console.error(`[FFmpeg] Lỗi luồng ${streamId}: ${err.message}`);
+            logLine(`ERROR: ${err.message}`);
+            logLine(`--- END ${streamId} ---\n`);
             activeStreams.delete(streamId);
         })
         .on('end', () => {
             console.log(`[FFmpeg] Kết thúc luồng ${streamId}`);
+            logLine(`--- END ${streamId} ---\n`);
             activeStreams.delete(streamId);
         });
 
@@ -510,6 +529,29 @@ app.post('/api/stream/start', (req, res) => {
     activeStreams.set(streamId, { command, rtspUrl, viewers: 1 });
 
     res.json({ success: true, flvUrl, status: 'started' });
+});
+
+// API xem FFmpeg log
+app.get('/api/ffmpeg-log', (req, res) => {
+    try {
+        if (!fs.existsSync(FFMPEG_LOG_PATH)) return res.json({ log: '(Chưa có log nào)' });
+        const content = fs.readFileSync(FFMPEG_LOG_PATH, 'utf8');
+        // Giới hạn 200KB cuối để tránh gửi file quá lớn
+        const trimmed = content.length > 200000 ? '...(truncated)\n' + content.slice(-200000) : content;
+        res.json({ log: trimmed });
+    } catch (err) {
+        res.status(500).json({ log: 'Lỗi đọc log: ' + err.message });
+    }
+});
+
+// API xóa FFmpeg log
+app.delete('/api/ffmpeg-log', (req, res) => {
+    try {
+        if (fs.existsSync(FFMPEG_LOG_PATH)) fs.writeFileSync(FFMPEG_LOG_PATH, '');
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 app.post('/api/stream/stop', (req, res) => {
