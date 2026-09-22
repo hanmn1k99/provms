@@ -473,22 +473,18 @@ app.post('/api/stream/start', (req, res) => {
         console.log(`[Stream] Phát hiện Luồng PHỤ (H.264). Kích hoạt Direct Copy (0% CPU).`);
     }
 
-    // Đảm bảo pixel format tương thích với các bộ nén phần cứng (hầu hết đều yêu cầu nv12 hoặc yuv420p)
-    // Nếu NVR đẩy luồng H.265 10-bit, nó sẽ crash nếu không convert về 8-bit nv12
-    const hwFilters = ['-vf', 'format=nv12'];
-
+    // Pipeline tối ưu cho 2018 FFmpeg:
+    // - INPUT: CPU giải mã H.265 (1 luồng chính không tốn nhiều CPU)
+    // - OUTPUT: GPU (NVENC/QSV/AMF) nén H.264 — đây mới là phần nặng cần GPU
+    // Không dùng hwaccel ở input để tránh xung đột memory pipeline với filter
     if (actualTranscodeMode === 'gpu_intel') {
-        inputOptions.unshift('-hwaccel', 'qsv');
-        outputOptions.push('-c:v', 'h264_qsv', '-preset', 'veryfast', ...hwFilters, '-g', '30');
+        outputOptions.push('-c:v', 'h264_qsv', '-preset', 'fast', '-g', '30');
     } else if (actualTranscodeMode === 'gpu_nvidia') {
-        inputOptions.unshift('-hwaccel', 'cuda');
-        // Preset kiểu cũ: ll=low latency, llhq=low latency high quality (ffmpeg <2020 không có p1-p7)
-        outputOptions.push('-c:v', 'h264_nvenc', '-preset', 'llhq', ...hwFilters, '-g', '30');
+        // Preset an toàn cho FFmpeg 2018: medium, fast, slow, hp, hq, bd, ll, lossless
+        outputOptions.push('-c:v', 'h264_nvenc', '-preset', 'fast', '-g', '30');
     } else if (actualTranscodeMode === 'gpu_amd') {
-        inputOptions.unshift('-hwaccel', 'd3d11va');
-        outputOptions.push('-c:v', 'h264_amf', '-usage', 'lowlatency', ...hwFilters, '-g', '30');
+        outputOptions.push('-c:v', 'h264_amf', '-usage', 'lowlatency', '-g', '30');
     } else if (actualTranscodeMode === 'auto_h265' || actualTranscodeMode === 'gpu_hybrid') {
-        inputOptions.unshift('-hwaccel', 'auto'); 
         outputOptions.push('-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-g', '30', '-bf', '0');
     } else if (actualTranscodeMode === 'cpu') {
         outputOptions.push('-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-g', '30', '-bf', '0');
@@ -496,30 +492,17 @@ app.post('/api/stream/start', (req, res) => {
         outputOptions.push('-c:v', 'copy');
     }
 
-    const fs = require('fs');
-    const path = require('path');
-    const os = require('os');
-    const logPath = path.join(os.homedir(), 'Desktop', 'provms_ffmpeg.log');
-
     const command = ffmpeg(rtspUrl)
         .inputOptions(inputOptions)
         .addOptions(outputOptions)
         .output(`rtmp://localhost:1935/live/${streamId}`)
-        .on('start', (cmd) => {
-            console.log(`[FFmpeg] Bắt đầu: ${cmd}`);
-            fs.appendFileSync(logPath, `\n\n--- STARTING STREAM ${streamId} ---\nCMD: ${cmd}\n`);
-        })
-        .on('stderr', (stderrLine) => {
-            fs.appendFileSync(logPath, stderrLine + '\n');
-        })
+        .on('start', (cmd) => console.log(`[FFmpeg] Bắt đầu: ${cmd}`))
         .on('error', (err) => {
             console.error(`[FFmpeg] Lỗi luồng ${streamId}: ${err.message}`);
-            fs.appendFileSync(logPath, `ERROR: ${err.message}\n`);
             activeStreams.delete(streamId);
         })
         .on('end', () => {
             console.log(`[FFmpeg] Kết thúc luồng ${streamId}`);
-            fs.appendFileSync(logPath, `--- ENDED STREAM ${streamId} ---\n`);
             activeStreams.delete(streamId);
         });
 
