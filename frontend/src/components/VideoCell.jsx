@@ -41,33 +41,21 @@ const VideoCell = ({ camera, isMainStream = false }) => {
           if (isMounted) setLoading(false);
         };
 
-        let isDrawing = false;
-
-        ws.onmessage = async (event) => {
-          // Nút thắt cổ chai: Drop frame nếu trình duyệt đang bận vẽ frame trước
-          if (isDrawing || !canvasRef.current) return; 
-
-          isDrawing = true;
-          try {
-            const canvas = canvasRef.current;
-            const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true }); // Tối ưu phần cứng
-            
-            const blob = new Blob([event.data], { type: 'image/jpeg' });
-            const bitmap = await createImageBitmap(blob);
-            
-            // Chỉ cập nhật kích thước 1 lần đầu để tránh trigger Reflow/Layout (rất nặng)
-            if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
-              canvas.width = bitmap.width;
-              canvas.height = bitmap.height;
-            }
-            
-            ctx.drawImage(bitmap, 0, 0);
-            bitmap.close();
-          } catch (e) {
-            // Bỏ qua lỗi decode
-          } finally {
-            isDrawing = false;
-          }
+        ws.onmessage = (event) => {
+          if (!canvasRef.current) return;
+          
+          const img = canvasRef.current;
+          
+          // Tạo URL tạm thời cho ảnh JPEG
+          const blob = new Blob([event.data], { type: 'image/jpeg' });
+          const url = URL.createObjectURL(blob);
+          
+          // Trình duyệt tự dọn dẹp URL cũ ra khỏi RAM sau khi load xong ảnh mới
+          img.onload = () => {
+             URL.revokeObjectURL(url);
+          };
+          
+          img.src = url;
         };
 
         ws.onerror = (err) => {
@@ -90,10 +78,6 @@ const VideoCell = ({ camera, isMainStream = false }) => {
       }
       if (wsRef.current) {
         wsRef.current.close();
-      }
-      if (canvasRef.current && !isMainStream) {
-        const ctx = canvasRef.current.getContext('2d');
-        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
     };
   }, [camera, isMainStream]);
@@ -125,8 +109,8 @@ const VideoCell = ({ camera, isMainStream = false }) => {
           isMainStream ? (
             <FlvPlayer url={flvUrl} isMuted={true} />
           ) : (
-            <canvas 
-              ref={canvasRef}
+            <img 
+              ref={canvasRef} // Vẫn giữ tên biến canvasRef cho tiện, nhưng thực chất là img
               style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000' }} 
             />
           )
@@ -143,7 +127,10 @@ const VideoCell = ({ camera, isMainStream = false }) => {
 
       {/* Bảng điều khiển PTZ (chỉ hiện ở chế độ xem đơn/MainStream) */}
       {isMainStream && (
-        <div style={{ position: 'absolute', right: '20px', bottom: '20px', zIndex: 20, display: 'flex', flexDirection: 'column', gap: '15px', background: 'rgba(0,0,0,0.5)', padding: '15px', borderRadius: '12px', backdropFilter: 'blur(4px)' }}>
+        <div 
+          style={{ position: 'absolute', right: '20px', bottom: '20px', zIndex: 20, display: 'flex', flexDirection: 'column', gap: '15px', background: 'rgba(0,0,0,0.5)', padding: '15px', borderRadius: '12px', backdropFilter: 'blur(4px)' }}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
           <div style={{ textAlign: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '5px' }}>PTZ CTRL</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px', alignSelf: 'center' }}>
             <div />

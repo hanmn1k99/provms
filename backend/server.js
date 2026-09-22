@@ -448,8 +448,6 @@ app.post('/api/stream/start', (req, res) => {
 
     let inputOptions = [
         '-rtsp_transport', 'tcp',
-        '-fflags', 'nobuffer',
-        '-flags', 'low_delay',
         '-analyzeduration', '1000000', 
         '-probesize', '5000000'
     ];
