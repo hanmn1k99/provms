@@ -482,7 +482,8 @@ app.post('/api/stream/start', (req, res) => {
         outputOptions.push('-c:v', 'h264_qsv', '-preset', 'veryfast', ...hwFilters, '-g', '30');
     } else if (actualTranscodeMode === 'gpu_nvidia') {
         inputOptions.unshift('-hwaccel', 'cuda');
-        outputOptions.push('-c:v', 'h264_nvenc', '-preset', 'p1', ...hwFilters, '-g', '30');
+        // Preset kiểu cũ: ll=low latency, llhq=low latency high quality (ffmpeg <2020 không có p1-p7)
+        outputOptions.push('-c:v', 'h264_nvenc', '-preset', 'llhq', ...hwFilters, '-g', '30');
     } else if (actualTranscodeMode === 'gpu_amd') {
         inputOptions.unshift('-hwaccel', 'd3d11va');
         outputOptions.push('-c:v', 'h264_amf', '-usage', 'lowlatency', ...hwFilters, '-g', '30');
@@ -495,17 +496,30 @@ app.post('/api/stream/start', (req, res) => {
         outputOptions.push('-c:v', 'copy');
     }
 
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+    const logPath = path.join(os.homedir(), 'Desktop', 'provms_ffmpeg.log');
+
     const command = ffmpeg(rtspUrl)
         .inputOptions(inputOptions)
         .addOptions(outputOptions)
         .output(`rtmp://localhost:1935/live/${streamId}`)
-        .on('start', (cmd) => console.log(`[FFmpeg] Bắt đầu: ${cmd}`))
+        .on('start', (cmd) => {
+            console.log(`[FFmpeg] Bắt đầu: ${cmd}`);
+            fs.appendFileSync(logPath, `\n\n--- STARTING STREAM ${streamId} ---\nCMD: ${cmd}\n`);
+        })
+        .on('stderr', (stderrLine) => {
+            fs.appendFileSync(logPath, stderrLine + '\n');
+        })
         .on('error', (err) => {
             console.error(`[FFmpeg] Lỗi luồng ${streamId}: ${err.message}`);
+            fs.appendFileSync(logPath, `ERROR: ${err.message}\n`);
             activeStreams.delete(streamId);
         })
         .on('end', () => {
             console.log(`[FFmpeg] Kết thúc luồng ${streamId}`);
+            fs.appendFileSync(logPath, `--- ENDED STREAM ${streamId} ---\n`);
             activeStreams.delete(streamId);
         });
 
