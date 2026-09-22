@@ -2,6 +2,19 @@
 
 Tất cả những thay đổi nổi bật của dự án **ProVMS Enterprise** sẽ được ghi chép tại đây.
 
+## [2.9.18] - 2026-09-22
+### Siêu Tối ưu & Nâng cấp (Performance & Upgrades)
+- **Native Image Rendering:** Gỡ bỏ HTML5 Canvas để giải phóng hoàn toàn luồng chính (Main Thread) của Javascript. Chuyển sang sử dụng `<img>` tag kết hợp `URL.createObjectURL` và `ArrayBuffer` để đẩy luồng MJPEG (Sub-stream) thẳng vào engine C++/Raster của trình duyệt. Tối ưu cực độ, giải quyết dứt điểm hiện tượng giật/lag khi xem đồng thời 64 camera trên nhiều Tab/màn hình phụ (Zero-lag).
+- **Auto-Drop Frame Algorithm:** Thuật toán thông minh tự động loại bỏ các frame hình bị dồn ứ nếu màn hình chưa kịp vẽ xong, đảm bảo độ trễ của luồng trực tiếp luôn ở mức Zero-latency.
+- **Asynchronous Broadcasting:** Bỏ gửi gói tin đồng bộ, chuyển sang cơ chế gửi WebSocket không chờ đợi để tránh hiện tượng nghẽn cổ chai khi Broadcast cho nhiều tab trình duyệt cùng lúc.
+- **Hardware Transcode Negotiation:** Gỡ bỏ ép cứng `hwaccel_output_format`. Trình xử lý FFmpeg nay sẽ tự động nhận diện hệ màu (như H.265 10-bit) từ NVR, dùng CPU chèn màng lọc trung gian (`-vf format=nv12`) chuyển đổi định dạng an toàn trước khi ném vào GPU để xuất ra H.264. Chống Crash hoàn toàn khi mở luồng chính.
+- **Smart Probe Size:** Tăng `probesize` lên 5MB và `analyzeduration` lên 0.5s để cải thiện 100% tỷ lệ bắt khung hình khởi động thành công cho các luồng 4K nặng.
+
+## [2.9.11] - 2026-09-22
+### Thêm mới (Added)
+- **Chế độ System Tray (Chạy ngầm):** Ứng dụng nay có thể thu nhỏ xuống khay hệ thống (System Tray). Hỗ trợ chạy ngầm hoàn toàn tĩnh lặng khi chọn tính năng "Khởi động cùng Windows" (chạy kèm cờ `--hidden`).
+- **Responsive Header Layout:** Áp dụng kỹ thuật CSS Media Queries bảo vệ tính toàn vẹn của thanh Header. Chữ trên các nút bấm sẽ tự động ẩn đi (chỉ giữ lại Icon) khi thu hẹp kích thước màn hình, loại bỏ 100% tình trạng vỡ layout hoặc xuất hiện thanh cuộn ngang/dọc làm hỏng thiết kế.
+
 ## [2.5.0] - 2026-09-19
 ### Thêm mới (Added)
 - **Tích hợp API phần cứng (Native SDK Integration):** Tích hợp sâu giao thức ISAPI (Hikvision) và CGI (Dahua). 
