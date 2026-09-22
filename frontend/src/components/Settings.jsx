@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CameraManagement from './CameraManagement';
 import UserManagement from './UserManagement';
-import { Camera, Users, Settings as SettingsIcon, FileText, Trash2, X } from 'lucide-react';
+import { IoCameraOutline, IoPeopleOutline, IoSettingsOutline as SettingsIcon, IoDocumentTextOutline, IoTrashOutline, IoClose } from 'react-icons/io5';
 import axios from 'axios';
 
 const SystemSettings = ({ showToast }) => {
@@ -105,20 +105,20 @@ const SystemSettings = ({ showToast }) => {
       <div className="admin-card" style={{ padding: '20px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px' }}>
         <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem' }}>FFmpeg Log</h4>
         <p style={{ margin: '0 0 15px 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Nhật ký hoạt động của bộ xử lý luồng video. Lưu tại <code>%APPDATA%\ProVMS Enterprise\ffmpeg.log</code>
+          Nhật ký hoạt động của bộ xử lý luồng video. Lưu tại <code>%APPDATA%\minhhan.net\provms\ffmpeg.log</code>
         </p>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             onClick={handleViewLog}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
           >
-            <FileText size={15} /> Xem Log
+            <IoDocumentTextOutline size={15} /> Xem Log
           </button>
           <button
             onClick={handleClearLog}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
           >
-            <Trash2 size={15} /> Xóa Log
+            <IoTrashOutline size={15} /> Xóa Log
           </button>
         </div>
       </div>
@@ -131,10 +131,10 @@ const SystemSettings = ({ showToast }) => {
               <span style={{ fontWeight: 700, fontSize: '1rem' }}>📋 FFmpeg Log</span>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button onClick={handleClearLog} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
-                  <Trash2 size={13} /> Xóa
+                  <IoTrashOutline size={13} /> Xóa
                 </button>
                 <button onClick={() => setShowLogModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                  <X size={22} />
+                  <IoClose size={22} />
                 </button>
               </div>
             </div>
@@ -172,7 +172,7 @@ const Settings = ({ cameras, onCamerasUpdated, showToast }) => {
               transition: 'all 0.2s'
             }}
           >
-            <Camera size={20} />
+            <IoCameraOutline size={20} />
             Quản lý Camera
           </button>
           
@@ -191,7 +191,7 @@ const Settings = ({ cameras, onCamerasUpdated, showToast }) => {
               transition: 'all 0.2s'
             }}
           >
-            <Users size={20} />
+            <IoPeopleOutline size={20} />
             Quản lý Tài khoản
           </button>
 

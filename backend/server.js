@@ -9,8 +9,8 @@ const os = require('os');
 
 const fs = require('fs');
 
-// Thư mục log chuẩn Windows: %APPDATA%\ProVMS Enterprise\
-const LOG_DIR = path.join(os.homedir(), 'AppData', 'Roaming', 'ProVMS Enterprise');
+// Thư mục log chuẩn theo AppData (được Electron truyền qua process.env.APPDATA_PATH)
+const LOG_DIR = process.env.APPDATA_PATH || path.join(os.homedir(), 'AppData', 'Roaming', 'minhhan.net', 'provms');
 const FFMPEG_LOG_PATH = path.join(LOG_DIR, 'ffmpeg.log');
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
@@ -486,8 +486,9 @@ app.post('/api/stream/start', (req, res) => {
     if (actualTranscodeMode === 'gpu_intel') {
         outputOptions.push('-c:v', 'h264_qsv', '-preset', 'fast', '-g', '30');
     } else if (actualTranscodeMode === 'gpu_nvidia') {
-        // Preset an toàn cho FFmpeg 2018: medium, fast, slow, hp, hq, bd, ll, lossless
-        outputOptions.push('-c:v', 'h264_nvenc', '-preset', 'fast', '-g', '30');
+        // Không truyền -preset vì FFmpeg 2018 + GTX 1650 driver reject mọi preset string
+        // NVENC sẽ tự dùng default preset (medium/hp tuỳ driver)
+        outputOptions.push('-c:v', 'h264_nvenc', '-g', '30');
     } else if (actualTranscodeMode === 'gpu_amd') {
         outputOptions.push('-c:v', 'h264_amf', '-usage', 'lowlatency', '-g', '30');
     } else if (actualTranscodeMode === 'auto_h265' || actualTranscodeMode === 'gpu_hybrid') {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { User, Save } from 'lucide-react';
+import { IoPersonOutline, IoSaveOutline } from 'react-icons/io5';
 
 export default function UserManagement({ showToast }) {
   const [adminUser, setAdminUser] = useState(null);
@@ -64,7 +64,7 @@ export default function UserManagement({ showToast }) {
       <div className="admin-card" style={{ width: '100%', maxWidth: '500px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '15px' }}>
           <div style={{ padding: '10px', background: 'var(--accent-light)', borderRadius: '50%' }}>
-            <User size={24} color="var(--accent)" />
+            <IoPersonOutline size={24} color="var(--accent)" />
           </div>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.25rem' }}>{fullName || 'Tài khoản Quản trị'}</h3>
@@ -121,7 +121,7 @@ export default function UserManagement({ showToast }) {
           </div>
 
           <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', fontSize: '1rem' }}>
-            <Save size={18} /> Lưu Thay Đổi
+            <IoSaveOutline size={18} /> Lưu Thay Đổi
           </button>
         </form>
       </div>

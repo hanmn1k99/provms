@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import flvjs from 'flv.js';
-import { VideoOff } from 'lucide-react';
+import { IoVideocamOffOutline } from 'react-icons/io5';
 
 const FlvPlayer = ({ url, isMuted = true }) => {
   const videoRef = useRef(null);
@@ -78,7 +78,7 @@ const FlvPlayer = ({ url, isMuted = true }) => {
   if (!url) {
     return (
       <div style={{ width: '100%', height: '100%', backgroundColor: 'black', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#334155' }}>
-        <VideoOff size={48} style={{ marginBottom: '8px' }} />
+        <IoVideocamOffOutline size={48} style={{ marginBottom: '8px' }} />
         <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>NO SIGNAL</span>
       </div>
     );

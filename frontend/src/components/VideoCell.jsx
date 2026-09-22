@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import FlvPlayer from './FlvPlayer';
-import { Camera, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { IoCameraOutline, IoChevronUpOutline, IoChevronDownOutline, IoChevronBackOutline as ChevronLeft, IoChevronForwardOutline as ChevronRight, IoAddOutline as ZoomIn, IoRemoveOutline as ZoomOut } from 'react-icons/io5';
 
 const VideoCell = ({ camera, isMainStream = false }) => {
   const [flvUrl, setFlvUrl] = useState(null);
@@ -134,10 +134,10 @@ const VideoCell = ({ camera, isMainStream = false }) => {
           <div style={{ textAlign: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '5px' }}>PTZ CTRL</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px', alignSelf: 'center' }}>
             <div />
-            <button className="ptz-btn" onMouseDown={() => handlePtz('Up', 'start')} onMouseUp={() => handlePtz('Up', 'stop')} onMouseLeave={() => handlePtz('Up', 'stop')}><ChevronUp size={20}/></button>
+            <button className="ptz-btn" onMouseDown={() => handlePtz('Up', 'start')} onMouseUp={() => handlePtz('Up', 'stop')} onMouseLeave={() => handlePtz('Up', 'stop')}><IoChevronUpOutline size={20}/></button>
             <div />
             <button className="ptz-btn" onMouseDown={() => handlePtz('Left', 'start')} onMouseUp={() => handlePtz('Left', 'stop')} onMouseLeave={() => handlePtz('Left', 'stop')}><ChevronLeft size={20}/></button>
-            <button className="ptz-btn" onMouseDown={() => handlePtz('Down', 'start')} onMouseUp={() => handlePtz('Down', 'stop')} onMouseLeave={() => handlePtz('Down', 'stop')}><ChevronDown size={20}/></button>
+            <button className="ptz-btn" onMouseDown={() => handlePtz('Down', 'start')} onMouseUp={() => handlePtz('Down', 'stop')} onMouseLeave={() => handlePtz('Down', 'stop')}><IoChevronDownOutline size={20}/></button>
             <button className="ptz-btn" onMouseDown={() => handlePtz('Right', 'start')} onMouseUp={() => handlePtz('Right', 'stop')} onMouseLeave={() => handlePtz('Right', 'stop')}><ChevronRight size={20}/></button>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>

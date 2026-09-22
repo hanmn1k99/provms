@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import VideoCell from './components/VideoCell';
 import Settings from './components/Settings';
-import { Camera, Shield, MonitorUp, LogOut } from 'lucide-react';
+import { IoCameraOutline, IoShieldCheckmarkOutline, IoDesktopOutline, IoLogOutOutline } from 'react-icons/io5';
 import './login.css';
 import './admin.css';
 import './App.css';
@@ -263,7 +263,7 @@ function App() {
             onClick={() => window.open(window.location.origin + '?mode=viewer', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no')}
             className="header-btn header-btn-outline"
           >
-            <MonitorUp size={16} />
+            <IoDesktopOutline size={16} />
             <span className="hide-text-1400">Mở màn phụ</span>
           </button>
 
@@ -274,10 +274,10 @@ function App() {
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>@{currentUser?.Username}</div>
               </div>
               <div className="avatar-circle">
-                <Shield size={16} />
+                <IoShieldCheckmarkOutline size={16} />
               </div>
               <button onClick={handleLogout} className="header-btn header-btn-danger">
-                <LogOut size={14} />
+                <IoLogOutOutline size={14} />
                 <span className="hide-text-1200">Đăng xuất</span>
               </button>
             </div>

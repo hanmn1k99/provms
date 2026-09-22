@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Plus, Edit, Trash2, X, Save, Download, Upload, Camera } from 'lucide-react';
+import { IoAdd, IoCreateOutline, IoTrashOutline, IoClose, IoSaveOutline, IoCloudDownloadOutline, IoCloudUploadOutline, IoCameraOutline } from 'react-icons/io5';
 import * as XLSX from 'xlsx';
 
 export default function CameraManagement({ cameras, onCamerasUpdated, showToast }) {
@@ -262,7 +262,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
               onClick={handleBulkDelete}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 500, fontSize: '0.9rem' }}
             >
-              <Trash2 size={16} /> Xóa {selectedIds.length} mục
+              <IoTrashOutline size={16} /> Xóa {selectedIds.length} mục
             </button>
           )}
 
@@ -270,7 +270,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
             onClick={handleDownloadTemplate}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#334155', color: '#fff', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'default', fontWeight: 500, fontSize: '0.9rem' }}
           >
-            <Download size={16} /> Tải Mẫu Excel
+            <IoCloudDownloadOutline size={16} /> Tải Mẫu Excel
           </button>
           
           <input 
@@ -284,7 +284,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
             onClick={() => fileInputRef.current?.click()}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 500, fontSize: '0.9rem' }}
           >
-            <Upload size={16} /> Nhập từ Excel
+            <IoCloudUploadOutline size={16} /> Nhập từ Excel
           </button>
           
           <button 
@@ -292,7 +292,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
             onClick={() => handleOpenModal()}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 500, fontSize: '0.9rem' }}
           >
-            <Plus size={16} /> Thêm Camera
+            <IoAdd size={16} /> Thêm Camera
           </button>
         </div>
       </div>
@@ -342,10 +342,10 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
                   <td style={{ padding: '15px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <button className="btn btn-sm btn-ghost" onClick={() => handleOpenModal(cam)}>
-                        <Edit size={16} />
+                        <IoCreateOutline size={16} />
                       </button>
                       <button className="btn btn-sm btn-danger-ghost" onClick={() => handleDelete(cam.Id)}>
-                        <Trash2 size={16} />
+                        <IoTrashOutline size={16} />
                       </button>
                     </div>
                   </td>
@@ -362,7 +362,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
             <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>{editingCam ? 'Chỉnh sửa Camera' : 'Thêm Camera mới'}</h3>
               <button className="btn-icon" onClick={() => setShowModal(false)} style={{ color: 'var(--text-muted)' }}>
-                <X size={20} />
+                <IoClose size={20} />
               </button>
             </div>
             
@@ -411,7 +411,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy bỏ</button>
                 <button type="submit" className="btn btn-primary">
-                  <Save size={18} style={{ marginRight: '6px' }} />
+                  <IoSaveOutline size={18} style={{ marginRight: '6px' }} />
                   {editingCam ? 'Lưu thay đổi' : 'Thêm mới'}
                 </button>
               </div>
