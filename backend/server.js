@@ -283,6 +283,18 @@ const wss = new WebSocket.Server({ port: 3001 }, () => {
 
 const activeMjpegStreams = new Map(); // key: rtspUrl, value: { command, clients: Set, lastFrame: Buffer }
 
+// Hàm broadcast bất đồng bộ — không block event loop khi nhiều tab
+function broadcastFrame(clients, frame) {
+    clients.forEach(clientWs => {
+        if (clientWs.readyState === WebSocket.OPEN) {
+            // setImmediate: nhường event loop giữa mỗi lần gửi, tránh tắc nghẽn
+            setImmediate(() => {
+                try { clientWs.send(frame); } catch (e) {}
+            });
+        }
+    });
+}
+
 wss.on('connection', (ws, req) => {
     const urlParams = new URLSearchParams(req.url.split('?')[1]);
     const rtspUrl = urlParams.get('rtspUrl');
@@ -294,11 +306,26 @@ wss.on('connection', (ws, req) => {
 
     if (!activeMjpegStreams.has(rtspUrl)) {
         console.log(`[MJPEG-WS] Khởi tạo luồng mới từ NVR: ${rtspUrl}`);
-        
+
+        // Lấy cấu hình decode từ DB để tận dụng GPU/iGPU
+        const settingStmt = db.prepare('SELECT Value FROM Settings WHERE Key = ?');
+        const settingObj = settingStmt.get('GlobalTranscodeMode');
+        const transcodeMode = settingObj ? settingObj.Value : 'gpu_hybrid';
+
+        // Chọn hwaccel decode phù hợp với phần cứng
+        let hwDecodeOpts = ['-hwaccel auto']; // fallback mặc định
+        if (transcodeMode === 'gpu_intel') {
+            hwDecodeOpts = ['-hwaccel qsv', '-c:v hevc_qsv'];  // iGPU Intel decode H.265
+        } else if (transcodeMode === 'gpu_nvidia') {
+            hwDecodeOpts = ['-hwaccel cuda', '-hwaccel_output_format cuda', '-c:v hevc_cuvid']; // NVDEC decode
+        } else if (transcodeMode === 'gpu_amd') {
+            hwDecodeOpts = ['-hwaccel d3d11va'];  // DirectX VA decode
+        }
+
         const command = ffmpeg(rtspUrl)
             .inputOptions([
                 '-rtsp_transport tcp',
-                '-hwaccel auto',
+                ...hwDecodeOpts,
                 '-fflags nobuffer',
                 '-flags low_delay',
                 '-analyzeduration 50000',
@@ -306,9 +333,9 @@ wss.on('connection', (ws, req) => {
             ])
             .outputOptions([
                 '-an',
-                '-c:v mjpeg',
-                '-q:v 5',
-                '-r 15',
+                '-c:v mjpeg',   // JPEG encode luôn là software — nhẹ hơn nhiều khi decode GPU
+                '-q:v 5',       // Chất lượng JPEG (1=tốt nhất, 31=tệ nhất)
+                '-r 15',        // 15fps để tiết kiệm băng thông
                 '-f image2pipe'
             ])
             .on('error', (err) => {
@@ -325,7 +352,8 @@ wss.on('connection', (ws, req) => {
         const streamInfo = {
             command,
             clients: new Set(),
-            buffer: Buffer.alloc(0)
+            buffer: Buffer.alloc(0),
+            lastFrame: null  // Cache frame mới nhất để gửi ngay khi client kết nối
         };
         activeMjpegStreams.set(rtspUrl, streamInfo);
 
@@ -336,17 +364,23 @@ wss.on('connection', (ws, req) => {
             info.buffer = Buffer.concat([info.buffer, chunk]);
             
             let endIdx;
-            while ((endIdx = info.buffer.indexOf(Buffer.from([0xFF, 0xD9]))) !== -1) {
+            const JPEG_END = Buffer.from([0xFF, 0xD9]);
+            while ((endIdx = info.buffer.indexOf(JPEG_END)) !== -1) {
                 const frame = info.buffer.slice(0, endIdx + 2);
                 
-                // Broadcast to all active WebSocket clients for this camera
-                info.clients.forEach(clientWs => {
-                    if (clientWs.readyState === WebSocket.OPEN) {
-                        clientWs.send(frame);
-                    }
-                });
+                // Cache frame cuối để client mới vào có ảnh ngay lập tức
+                info.lastFrame = frame;
+                
+                // Broadcast bất đồng bộ — không block lẫn nhau giữa các tab
+                broadcastFrame(info.clients, frame);
                 
                 info.buffer = info.buffer.slice(endIdx + 2);
+            }
+
+            // Giới hạn buffer tối đa 2MB để tránh memory leak
+            if (info.buffer.length > 2 * 1024 * 1024) {
+                console.warn(`[MJPEG-WS] Buffer tràn (${info.buffer.length} bytes), reset buffer: ${rtspUrl}`);
+                info.buffer = Buffer.alloc(0);
             }
         });
     }
@@ -355,6 +389,11 @@ wss.on('connection', (ws, req) => {
     const streamInfo = activeMjpegStreams.get(rtspUrl);
     streamInfo.clients.add(ws);
     console.log(`[MJPEG-WS] Client kết nối. Camera: ${rtspUrl}. Tổng người xem: ${streamInfo.clients.size}`);
+
+    // Gửi frame cache ngay để client có ảnh tức thì, không chờ frame kế tiếp
+    if (streamInfo.lastFrame) {
+        try { ws.send(streamInfo.lastFrame); } catch (e) {}
+    }
 
     ws.on('close', () => {
         const info = activeMjpegStreams.get(rtspUrl);
@@ -370,6 +409,7 @@ wss.on('connection', (ws, req) => {
         }
     });
 });
+
 
 app.post('/api/stream/start', (req, res) => {
     const { cameraId, rtspUrl } = req.body;
