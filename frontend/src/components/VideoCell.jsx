@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import FlvPlayer from './FlvPlayer';
-import { IoCameraOutline, IoChevronUpOutline, IoChevronDownOutline, IoChevronBackOutline as ChevronLeft, IoChevronForwardOutline as ChevronRight, IoAddOutline as ZoomIn, IoRemoveOutline as ZoomOut } from 'react-icons/io5';
+import {
+  IoCameraOutline, IoChevronUpOutline, IoChevronDownOutline,
+  IoChevronBackOutline as ChevronLeft, IoChevronForwardOutline as ChevronRight,
+  IoAddOutline as ZoomIn, IoRemoveOutline as ZoomOut,
+  IoGameControllerOutline, IoChevronDownCircleOutline
+} from 'react-icons/io5';
 
 const VideoCell = ({ camera, isMainStream = false }) => {
   const [flvUrl, setFlvUrl] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [ptzCollapsed, setPtzCollapsed] = useState(false);
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
 
@@ -31,30 +37,19 @@ const VideoCell = ({ camera, isMainStream = false }) => {
           if (isMounted) setLoading(false);
         });
       } else {
-        // Sử dụng WebSocket cho Sub Stream (Grid View) để tránh giới hạn 6 connection của HTTP
         const wsUrl = `ws://${window.location.hostname}:3001/?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`;
         const ws = new WebSocket(wsUrl);
-        ws.binaryType = 'arraybuffer'; // Tránh dùng disk-backed Blob, giảm lag I/O
+        ws.binaryType = 'arraybuffer';
         wsRef.current = ws;
 
-        ws.onopen = () => {
-          if (isMounted) setLoading(false);
-        };
+        ws.onopen = () => { if (isMounted) setLoading(false); };
 
         ws.onmessage = (event) => {
           if (!canvasRef.current) return;
-          
           const img = canvasRef.current;
-          
-          // Tạo URL tạm thời cho ảnh JPEG
           const blob = new Blob([event.data], { type: 'image/jpeg' });
           const url = URL.createObjectURL(blob);
-          
-          // Trình duyệt tự dọn dẹp URL cũ ra khỏi RAM sau khi load xong ảnh mới
-          img.onload = () => {
-             URL.revokeObjectURL(url);
-          };
-          
+          img.onload = () => URL.revokeObjectURL(url);
           img.src = url;
         };
 
@@ -70,15 +65,12 @@ const VideoCell = ({ camera, isMainStream = false }) => {
     return () => {
       isMounted = false;
       if (camera && isMainStream) {
-        const urlToStop = camera.RtspMainStream;
         axios.post(`http://${window.location.hostname}:3000/api/stream/stop`, {
           cameraId: camera.Id,
-          rtspUrl: urlToStop
+          rtspUrl: camera.RtspMainStream
         }).catch(err => console.log('Lỗi khi dừng stream:', err));
       }
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      if (wsRef.current) wsRef.current.close();
     };
   }, [camera, isMainStream]);
 
@@ -92,9 +84,7 @@ const VideoCell = ({ camera, isMainStream = false }) => {
 
   const handlePtz = (command, action) => {
     axios.post(`http://${window.location.hostname}:3000/api/ptz`, {
-      cameraId: camera.Id,
-      command,
-      action
+      cameraId: camera.Id, command, action
     }).catch(err => console.log('PTZ error', err));
   };
 
@@ -109,15 +99,15 @@ const VideoCell = ({ camera, isMainStream = false }) => {
           isMainStream ? (
             <FlvPlayer url={flvUrl} isMuted={true} />
           ) : (
-            <img 
-              ref={canvasRef} // Vẫn giữ tên biến canvasRef cho tiện, nhưng thực chất là img
-              style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000' }} 
+            <img
+              ref={canvasRef}
+              style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000' }}
             />
           )
         )}
       </div>
 
-      {/* Overlay UI (Tên Cam & Nút Tín Hiệu) */}
+      {/* Overlay UI (Tên Cam) */}
       <div style={{ position: 'absolute', bottom: '8px', left: '8px', zIndex: 10, backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontFamily: 'monospace', color: 'white', backdropFilter: 'blur(4px)' }}>
         {camera.Name}
       </div>
@@ -125,25 +115,65 @@ const VideoCell = ({ camera, isMainStream = false }) => {
         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', animation: 'pulse 2s infinite' }} />
       </div>
 
-      {/* Bảng điều khiển PTZ (chỉ hiện ở chế độ xem đơn/MainStream) */}
+      {/* Bảng điều khiển PTZ */}
       {isMainStream && (
-        <div 
-          style={{ position: 'absolute', right: '20px', bottom: '20px', zIndex: 20, display: 'flex', flexDirection: 'column', gap: '15px', background: 'rgba(0,0,0,0.5)', padding: '15px', borderRadius: '12px', backdropFilter: 'blur(4px)' }}
+        <div
+          style={{ position: 'absolute', right: '16px', bottom: '16px', zIndex: 20 }}
           onDoubleClick={(e) => e.stopPropagation()}
         >
-          <div style={{ textAlign: 'center', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '5px' }}>PTZ CTRL</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px', alignSelf: 'center' }}>
-            <div />
-            <button className="ptz-btn" onMouseDown={() => handlePtz('Up', 'start')} onMouseUp={() => handlePtz('Up', 'stop')} onMouseLeave={() => handlePtz('Up', 'stop')}><IoChevronUpOutline size={20}/></button>
-            <div />
-            <button className="ptz-btn" onMouseDown={() => handlePtz('Left', 'start')} onMouseUp={() => handlePtz('Left', 'stop')} onMouseLeave={() => handlePtz('Left', 'stop')}><ChevronLeft size={20}/></button>
-            <button className="ptz-btn" onMouseDown={() => handlePtz('Down', 'start')} onMouseUp={() => handlePtz('Down', 'stop')} onMouseLeave={() => handlePtz('Down', 'stop')}><IoChevronDownOutline size={20}/></button>
-            <button className="ptz-btn" onMouseDown={() => handlePtz('Right', 'start')} onMouseUp={() => handlePtz('Right', 'stop')} onMouseLeave={() => handlePtz('Right', 'stop')}><ChevronRight size={20}/></button>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-            <button className="ptz-btn" onMouseDown={() => handlePtz('ZoomIn', 'start')} onMouseUp={() => handlePtz('ZoomIn', 'stop')} onMouseLeave={() => handlePtz('ZoomIn', 'stop')}><ZoomIn size={18}/></button>
-            <button className="ptz-btn" onMouseDown={() => handlePtz('ZoomOut', 'start')} onMouseUp={() => handlePtz('ZoomOut', 'stop')} onMouseLeave={() => handlePtz('ZoomOut', 'stop')}><ZoomOut size={18}/></button>
-          </div>
+          {ptzCollapsed ? (
+            /* Trạng thái thu nhỏ: chỉ hiện nút icon nhỏ */
+            <button
+              onClick={() => setPtzCollapsed(false)}
+              title="Mở PTZ"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px',
+                padding: '7px 10px', background: 'rgba(0,0,0,0.6)',
+                color: '#94a3b8', border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '8px', cursor: 'pointer', backdropFilter: 'blur(4px)',
+                fontSize: '0.7rem', fontWeight: 600
+              }}
+            >
+              <IoGameControllerOutline size={16} />
+              PTZ
+            </button>
+          ) : (
+            /* Trạng thái mở rộng: full panel */
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: '10px',
+              background: 'rgba(0,0,0,0.55)', padding: '12px',
+              borderRadius: '12px', backdropFilter: 'blur(4px)',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}>
+              {/* Header PTZ + nút collapse */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
+                <span style={{ color: 'white', fontSize: '0.7rem', fontWeight: 'bold', letterSpacing: '0.05em' }}>PTZ CTRL</span>
+                <button
+                  onClick={() => setPtzCollapsed(true)}
+                  title="Thu nhỏ"
+                  style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px', lineHeight: 1 }}
+                >
+                  <IoChevronDownCircleOutline size={16} />
+                </button>
+              </div>
+
+              {/* D-Pad */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', alignSelf: 'center' }}>
+                <div />
+                <button className="ptz-btn" onMouseDown={() => handlePtz('Up', 'start')} onMouseUp={() => handlePtz('Up', 'stop')} onMouseLeave={() => handlePtz('Up', 'stop')}><IoChevronUpOutline size={18}/></button>
+                <div />
+                <button className="ptz-btn" onMouseDown={() => handlePtz('Left', 'start')} onMouseUp={() => handlePtz('Left', 'stop')} onMouseLeave={() => handlePtz('Left', 'stop')}><ChevronLeft size={18}/></button>
+                <button className="ptz-btn" onMouseDown={() => handlePtz('Down', 'start')} onMouseUp={() => handlePtz('Down', 'stop')} onMouseLeave={() => handlePtz('Down', 'stop')}><IoChevronDownOutline size={18}/></button>
+                <button className="ptz-btn" onMouseDown={() => handlePtz('Right', 'start')} onMouseUp={() => handlePtz('Right', 'stop')} onMouseLeave={() => handlePtz('Right', 'stop')}><ChevronRight size={18}/></button>
+              </div>
+
+              {/* Zoom */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                <button className="ptz-btn" onMouseDown={() => handlePtz('ZoomIn', 'start')} onMouseUp={() => handlePtz('ZoomIn', 'stop')} onMouseLeave={() => handlePtz('ZoomIn', 'stop')}><ZoomIn size={16}/></button>
+                <button className="ptz-btn" onMouseDown={() => handlePtz('ZoomOut', 'start')} onMouseUp={() => handlePtz('ZoomOut', 'stop')} onMouseLeave={() => handlePtz('ZoomOut', 'stop')}><ZoomOut size={16}/></button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>
