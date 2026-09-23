@@ -260,7 +260,14 @@ function App() {
 
         <div className="header-group">
           <button 
-            onClick={() => window.open(window.location.origin + '?mode=viewer', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no')}
+            onClick={() => {
+              if (window.electronAPI?.openSecondaryWindow) {
+                window.electronAPI.openSecondaryWindow();
+              } else {
+                // Fallback cho browser (dev mode)
+                window.open(window.location.origin + '?mode=viewer', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no');
+              }
+            }}
             className="header-btn header-btn-outline"
           >
             <IoDesktopOutline size={16} />

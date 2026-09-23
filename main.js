@@ -15,6 +15,22 @@ let serverProcess;
 let tray = null;
 app.isQuiting = false;
 
+// Chỉ cho phép 1 instance duy nhất chạy
+// Instance thứ 2 sẽ tự đóng và focus vào cửa sổ instance đầu tiên
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    app.quit(); // Instance thứ 2 tự thoát ngay
+} else {
+    app.on('second-instance', () => {
+        // Khi user mở lần 2, focus vào cửa sổ đang chạy
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+        }
+    });
+}
+
 // Cấu hình IPC cho Auto Start
 ipcMain.handle('get-auto-start', () => {
     return app.getLoginItemSettings().openAtLogin;
@@ -30,6 +46,30 @@ ipcMain.handle('set-auto-start', (event, enabled) => {
         ]
     });
     return app.getLoginItemSettings().openAtLogin;
+});
+
+// Mở màn hình phụ — BrowserWindow thật sự của Electron (cùng 1 app)
+let secondaryWindows = [];
+ipcMain.handle('open-secondary-window', () => {
+    const win = new BrowserWindow({
+        width: 1280,
+        height: 720,
+        title: 'ProVMS Enterprise — Màn phụ',
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
+        },
+        icon: path.join(__dirname, 'frontend/dist/favicon.png'),
+        autoHideMenuBar: true,
+        parent: mainWindow,   // Gắn với cửa sổ chính — cùng 1 app
+        // KHÔNG dùng modal: true để có thể tự do di chuyển sang màn hình khác
+    });
+    win.loadURL('http://localhost:3000/?mode=viewer');
+    secondaryWindows.push(win);
+    win.on('closed', () => {
+        secondaryWindows = secondaryWindows.filter(w => w !== win);
+    });
 });
 
 function createWindow() {
