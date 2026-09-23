@@ -332,14 +332,20 @@ wss.on('connection', (ws, req) => {
                 '-fflags', 'nobuffer',
                 '-flags', 'low_delay',
                 '-analyzeduration', '50000',
-                '-probesize', '50000'
+                '-probesize', '50000',
+                '-rtbufsize', '512k',       // Giới hạn RTSP capture buffer — mặc định 3.5MB, giảm xuống 512KB
+                '-thread_queue_size', '4',  // Giảm input thread queue (mặc định 32)
             ])
             .outputOptions([
                 '-an',
-                '-c:v mjpeg',   // JPEG encode luôn là software — nhẹ hơn nhiều khi decode GPU
-                '-q:v 5',       // Chất lượng JPEG (1=tốt nhất, 31=tệ nhất)
-                '-r 15',        // 15fps để tiết kiệm băng thông
-                '-f image2pipe'
+                '-threads', '1',            // 1 thread decode = ít reference frame buffer → tiết kiệm ~80-100MB/process
+                '-c:v', 'mjpeg',
+                '-q:v', '7',                // Chất lượng JPEG (tăng nhẹ từ 5→7 để đổi lấy tốc độ encode thấp hơn)
+                '-r', '12',                 // 12fps thay vì 15fps — giảm 20% CPU/RAM mỗi luồng
+                '-vf', 'scale=480:-2',      // Scale xuống 480px wide — grid view không cần 1080p!
+                                            // 1080p → 480p giảm buffer encode từ ~6MB xuống còn ~0.5MB/frame
+                '-f', 'image2pipe',
+                '-max_muxing_queue_size', '4', // Giảm muxing queue (mặc định 128)
             ])
             .on('error', (err) => {
                 console.error(`[MJPEG-WS] Lỗi FFmpeg: ${err.message}`);
