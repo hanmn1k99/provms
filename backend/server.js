@@ -289,8 +289,16 @@ const GO2RTC_PORT = 1984;
 const GO2RTC_API_BASE = `http://127.0.0.1:${GO2RTC_PORT}`;
 const go2rtcBin = path.join(__dirname, 'go2rtc.exe');
 
-// Tạo config tối giản cho go2rtc
-const go2rtcConfig = `api:\n  listen: ":${GO2RTC_PORT}"\nlog:\n  level: warn\n`;
+// Tạo config cho go2rtc — trỏ ffmpeg.bin vào provms-worker.exe để decode H.265
+const ffmpegBinForGo2rtc = customFfmpegPath.replace(/\\/g, '/'); // go2rtc YAML dùng forward slash
+const go2rtcConfig = [
+    `api:`,
+    `  listen: ":${GO2RTC_PORT}"`,
+    `log:`,
+    `  level: warn`,
+    `ffmpeg:`,
+    `  bin: "${ffmpegBinForGo2rtc}"`,
+].join('\n') + '\n';
 const go2rtcConfigPath = path.join(LOG_DIR, 'go2rtc.yaml');
 try { fs.writeFileSync(go2rtcConfigPath, go2rtcConfig, 'utf8'); } catch(e) {}
 
@@ -433,8 +441,12 @@ function startMjpegRelay(rtspUrl, streamInfo) {
 async function initGo2rtcStream(rtspUrl, streamInfo) {
     try {
         await waitGo2rtcReady();
-        await go2rtcAddStream(streamInfo.name, rtspUrl);
-        await new Promise(r => setTimeout(r, 1500)); // Chờ go2rtc kết nối RTSP
+        // go2rtc dùng ffmpeg: prefix để spawn FFmpeg nội bộ decode H.265
+        // Format: ffmpeg:{ffmpeg_args_with_-i}#{output_codec}
+        // Cần -rtsp_transport tcp để tránh UDP packet loss
+        const go2rtcSrc = `ffmpeg:-rtsp_transport tcp -i ${rtspUrl}#video=mjpeg`;
+        await go2rtcAddStream(streamInfo.name, go2rtcSrc);
+        await new Promise(r => setTimeout(r, 2500)); // Chờ go2rtc + FFmpeg kết nối RTSP
         startMjpegRelay(rtspUrl, streamInfo);
     } catch(e) {
         console.error('[go2rtc] Init failed:', e.message);
