@@ -14,6 +14,7 @@ const VideoCell = ({ camera, isMainStream = false }) => {
   const [ptzCollapsed, setPtzCollapsed] = useState(false);
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
+  const prevUrlRef = useRef(null); // Track URL cũ để revoke ngay lập tức, tránh memory leak
 
   useEffect(() => {
     let isMounted = true;
@@ -49,7 +50,10 @@ const VideoCell = ({ camera, isMainStream = false }) => {
           const img = canvasRef.current;
           const blob = new Blob([event.data], { type: 'image/jpeg' });
           const url = URL.createObjectURL(blob);
-          img.onload = () => URL.revokeObjectURL(url);
+          // Revoke URL cũ ngay lập tức khi frame mới đến — không chờ onload
+          // Đảm bảo chỉ có đúng 1 object URL tồn tại tại mỗi thời điểm
+          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+          prevUrlRef.current = url;
           img.src = url;
         };
 
@@ -71,6 +75,8 @@ const VideoCell = ({ camera, isMainStream = false }) => {
         }).catch(err => console.log('Lỗi khi dừng stream:', err));
       }
       if (wsRef.current) wsRef.current.close();
+      // Dọn URL cuối cùng khi component unmount
+      if (prevUrlRef.current) { URL.revokeObjectURL(prevUrlRef.current); prevUrlRef.current = null; }
     };
   }, [camera, isMainStream]);
 

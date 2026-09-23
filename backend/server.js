@@ -352,38 +352,58 @@ wss.on('connection', (ws, req) => {
 
         const pipeStream = command.pipe();
         
+        const MAX_BUF = 512 * 1024; // 512KB pre-alloc buffer mỗi luồng — đủ cho 1 frame 4K JPEG
         const streamInfo = {
             command,
             clients: new Set(),
-            buffer: Buffer.alloc(0),
-            lastFrame: null  // Cache frame mới nhất để gửi ngay khi client kết nối
+            buffer: Buffer.allocUnsafe(MAX_BUF),
+            bufLen: 0,
+            lastFrame: null
         };
         activeMjpegStreams.set(rtspUrl, streamInfo);
+
+        const JPEG_END = Buffer.from([0xFF, 0xD9]);
 
         pipeStream.on('data', (chunk) => {
             const info = activeMjpegStreams.get(rtspUrl);
             if (!info) return;
 
-            info.buffer = Buffer.concat([info.buffer, chunk]);
-            
+            // Ghi chunk vào pre-alloc buffer — không tạo Buffer mới mỗi lần
+            if (info.bufLen + chunk.length > info.buffer.length) {
+                // Mở rộng buffer nếu cần (hiếm xảy ra)
+                const newBuf = Buffer.allocUnsafe(info.bufLen + chunk.length + MAX_BUF);
+                info.buffer.copy(newBuf, 0, 0, info.bufLen);
+                info.buffer = newBuf;
+            }
+            chunk.copy(info.buffer, info.bufLen);
+            info.bufLen += chunk.length;
+
+            let searchStart = 0;
             let endIdx;
-            const JPEG_END = Buffer.from([0xFF, 0xD9]);
-            while ((endIdx = info.buffer.indexOf(JPEG_END)) !== -1) {
-                const frame = info.buffer.slice(0, endIdx + 2);
-                
-                // Cache frame cuối để client mới vào có ảnh ngay lập tức
+            while ((endIdx = info.buffer.indexOf(JPEG_END, searchStart, 'binary')) !== -1 && endIdx < info.bufLen) {
+                const frameEnd = endIdx + 2;
+                const frame = Buffer.from(info.buffer.slice(0, frameEnd)); // copy ra frame riêng
+
+                // Cache frame cuối để client mới có ảnh tức thì
                 info.lastFrame = frame;
-                
-                // Broadcast bất đồng bộ — không block lẫn nhau giữa các tab
-                broadcastFrame(info.clients, frame);
-                
-                info.buffer = info.buffer.slice(endIdx + 2);
+
+                // Broadcast — bỏ qua client đang bận (buffer WS > 64KB) để tránh RAM tích lũy
+                info.clients.forEach(clientWs => {
+                    if (clientWs.readyState === 1 && clientWs.bufferedAmount < 65536) {
+                        try { clientWs.send(frame, { binary: true }); } catch (e) {}
+                    }
+                });
+
+                // Dịch buffer về đầu — không tạo object mới
+                info.buffer.copy(info.buffer, 0, frameEnd, info.bufLen);
+                info.bufLen -= frameEnd;
+                searchStart = 0;
             }
 
-            // Giới hạn buffer tối đa 2MB để tránh memory leak
-            if (info.buffer.length > 2 * 1024 * 1024) {
-                console.warn(`[MJPEG-WS] Buffer tràn (${info.buffer.length} bytes), reset buffer: ${rtspUrl}`);
-                info.buffer = Buffer.alloc(0);
+            // Guard: nếu buffer vượt 1MB mà không tìm được JPEG end → reset
+            if (info.bufLen > 1024 * 1024) {
+                console.warn(`[MJPEG-WS] Buffer overflow, reset: ${rtspUrl}`);
+                info.bufLen = 0;
             }
         });
     }
