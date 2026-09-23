@@ -8,6 +8,8 @@ const path = require('path');
 const os = require('os');
 
 const fs = require('fs');
+const http = require('http');
+const { spawn } = require('child_process');
 
 // Thư mục log chuẩn theo AppData (được Electron truyền qua process.env.APPDATA_PATH)
 const LOG_DIR = process.env.APPDATA_PATH || path.join(os.homedir(), 'AppData', 'Roaming', 'minhhan.net', 'provms');
@@ -278,166 +280,221 @@ app.post('/api/ptz', (req, res) => {
 
 // ---------------------------------------------------------
 // HỆ THỐNG XỬ LÝ LUỒNG VIDEO (FFMPEG -> RTMP -> FLV)
+// ---------------------------------------------------------\r\nconst activeStreams = new Map();\r\n\r\n// ---------------------------------------------------------\r\n// go2rtc — thay thế FFmpeg per-process cho MJPEG sub-stream
+// 1 process go2rtc duy nhất quản lý tất cả camera (~80MB tổng)
+// thay vì 64 FFmpeg × 108MB = 6.9GB
 // ---------------------------------------------------------
-const activeStreams = new Map();
 
-// Cấu hình WebSocket Server cho MJPEG (Tránh giới hạn 6 connection của HTTP)
-const WebSocket = require('ws');
-const wss = new WebSocket.Server({ port: 3001 }, () => {
-    console.log('MJPEG WebSocket Server running on port 3001');
-});
+const GO2RTC_PORT = 1984;
+const GO2RTC_API_BASE = `http://127.0.0.1:${GO2RTC_PORT}`;
+const go2rtcBin = path.join(__dirname, 'go2rtc.exe');
 
-const activeMjpegStreams = new Map(); // key: rtspUrl, value: { command, clients: Set, lastFrame: Buffer }
+// Tạo config tối giản cho go2rtc
+const go2rtcConfig = `api:\n  listen: ":${GO2RTC_PORT}"\nlog:\n  level: warn\n`;
+const go2rtcConfigPath = path.join(LOG_DIR, 'go2rtc.yaml');
+try { fs.writeFileSync(go2rtcConfigPath, go2rtcConfig, 'utf8'); } catch(e) {}
 
-// Hàm broadcast bất đồng bộ — không block event loop khi nhiều tab
-function broadcastFrame(clients, frame) {
-    clients.forEach(clientWs => {
-        if (clientWs.readyState === 1 /* WebSocket.OPEN */) {
-            try { clientWs.send(frame, { binary: true }); } catch (e) {}
-        }
+// Khởi động go2rtc — tự restart nếu crash
+let go2rtcProc = null;
+function startGo2rtcProcess() {
+    if (!fs.existsSync(go2rtcBin)) { console.error('[go2rtc] Binary not found:', go2rtcBin); return; }
+    go2rtcProc = spawn(go2rtcBin, ['-c', go2rtcConfigPath], { stdio: 'ignore', detached: false });
+    go2rtcProc.on('exit', (code) => {
+        console.log(`[go2rtc] Process exited (${code}), restarting in 3s...`);
+        go2rtcProc = null;
+        setTimeout(startGo2rtcProcess, 3000);
+    });
+    console.log('[go2rtc] Process started, PID:', go2rtcProc.pid);
+}
+startGo2rtcProcess();
+
+// Chờ API go2rtc sẵn sàng (retry tối đa 15 lần × 500ms = 7.5 giây)
+function waitGo2rtcReady() {
+    return new Promise((resolve, reject) => {
+        let attempts = 0;
+        const tryConnect = () => {
+            const req = http.get(`${GO2RTC_API_BASE}/api/streams`, (res) => {
+                res.resume(); resolve();
+            });
+            req.on('error', () => {
+                if (++attempts < 15) setTimeout(tryConnect, 500);
+                else reject(new Error('[go2rtc] API not ready after 7.5s'));
+            });
+            req.setTimeout(500, () => { req.destroy(); });
+        };
+        setTimeout(tryConnect, 1000); // Chờ 1s trước lần thử đầu tiên
     });
 }
+
+// Đăng ký stream RTSP với go2rtc qua REST API
+function go2rtcAddStream(name, rtspUrl) {
+    return new Promise((resolve) => {
+        const body = rtspUrl;
+        const req = http.request({
+            hostname: '127.0.0.1', port: GO2RTC_PORT,
+            path: `/api/streams?name=${encodeURIComponent(name)}`,
+            method: 'PUT',
+            headers: { 'Content-Type': 'text/uri-list', 'Content-Length': Buffer.byteLength(body) }
+        }, (res) => { res.resume(); resolve(); });
+        req.on('error', (e) => { console.error('[go2rtc] addStream error:', e.message); resolve(); });
+        req.write(body);
+        req.end();
+    });
+}
+
+// Xóa stream khỏi go2rtc khi không còn client xem
+function go2rtcRemoveStream(name) {
+    const req = http.request({
+        hostname: '127.0.0.1', port: GO2RTC_PORT,
+        path: `/api/streams?name=${encodeURIComponent(name)}`,
+        method: 'DELETE'
+    }, (res) => { res.resume(); });
+    req.on('error', () => {});
+    req.end();
+}
+
+// Kết nối đến MJPEG output của go2rtc và relay cho WebSocket clients
+const JPEG_SOI = Buffer.from([0xFF, 0xD8]);
+const JPEG_EOI = Buffer.from([0xFF, 0xD9]);
+
+function startMjpegRelay(rtspUrl, streamInfo) {
+    if (!activeMjpegStreams.has(rtspUrl)) return; // đã bị xóa
+
+    const mjpegUrl = `/api/stream.mjpeg?src=${encodeURIComponent(streamInfo.name)}`;
+    let buf = Buffer.allocUnsafe(256 * 1024);
+    let bufLen = 0;
+
+    const req = http.get({ hostname: '127.0.0.1', port: GO2RTC_PORT, path: mjpegUrl }, (res) => {
+        if (res.statusCode !== 200) {
+            res.resume();
+            console.warn(`[go2rtc] MJPEG returned ${res.statusCode}, retry in 2s`);
+            setTimeout(() => startMjpegRelay(rtspUrl, streamInfo), 2000);
+            return;
+        }
+
+        res.on('data', (chunk) => {
+            if (!activeMjpegStreams.has(rtspUrl)) { res.destroy(); return; }
+
+            // Append vào buffer pre-alloc
+            if (bufLen + chunk.length > buf.length) {
+                const nb = Buffer.allocUnsafe(bufLen + chunk.length + 256 * 1024);
+                buf.copy(nb, 0, 0, bufLen); buf = nb;
+            }
+            chunk.copy(buf, bufLen);
+            bufLen += chunk.length;
+
+            // Tách các JPEG frame bằng SOI/EOI markers
+            let si = 0;
+            while (true) {
+                const soiPos = buf.indexOf(JPEG_SOI, si);
+                if (soiPos === -1 || soiPos >= bufLen) break;
+                const eoiPos = buf.indexOf(JPEG_EOI, soiPos + 2);
+                if (eoiPos === -1 || eoiPos + 2 > bufLen) break;
+
+                const frame = Buffer.from(buf.slice(soiPos, eoiPos + 2));
+                const info = activeMjpegStreams.get(rtspUrl);
+                if (info) {
+                    info.lastFrame = frame;
+                    info.clients.forEach(clientWs => {
+                        if (clientWs.readyState === 1 && clientWs.bufferedAmount < 65536) {
+                            try { clientWs.send(frame, { binary: true }); } catch(e) {}
+                        }
+                    });
+                }
+                si = eoiPos + 2;
+            }
+
+            // Shift buffer về đầu
+            if (si > 0) { buf.copy(buf, 0, si, bufLen); bufLen -= si; }
+            if (bufLen > 1024 * 1024) bufLen = 0; // guard
+        });
+
+        res.on('end', () => {
+            if (activeMjpegStreams.has(rtspUrl)) {
+                console.log(`[go2rtc] MJPEG ended for ${streamInfo.name}, reconnecting in 2s`);
+                setTimeout(() => startMjpegRelay(rtspUrl, streamInfo), 2000);
+            }
+        });
+        res.on('error', () => {
+            if (activeMjpegStreams.has(rtspUrl)) setTimeout(() => startMjpegRelay(rtspUrl, streamInfo), 2000);
+        });
+    });
+
+    req.on('error', (e) => {
+        console.error('[go2rtc] HTTP relay error:', e.message);
+        if (activeMjpegStreams.has(rtspUrl)) setTimeout(() => startMjpegRelay(rtspUrl, streamInfo), 2000);
+    });
+    req.setTimeout(10000, () => { req.destroy(); });
+
+    if (activeMjpegStreams.has(rtspUrl)) activeMjpegStreams.get(rtspUrl).mjpegReq = req;
+}
+
+// Khởi tạo stream bất đồng bộ — nhiều client cùng connect không bị race condition
+async function initGo2rtcStream(rtspUrl, streamInfo) {
+    try {
+        await waitGo2rtcReady();
+        await go2rtcAddStream(streamInfo.name, rtspUrl);
+        await new Promise(r => setTimeout(r, 1500)); // Chờ go2rtc kết nối RTSP
+        startMjpegRelay(rtspUrl, streamInfo);
+    } catch(e) {
+        console.error('[go2rtc] Init failed:', e.message);
+        streamInfo.clients.forEach(c => c.close());
+        activeMjpegStreams.delete(rtspUrl);
+    }
+}
+
+// WebSocket server — frontend kết nối vào đây (không đổi gì ở frontend)
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 3001 }, () => {
+    console.log('[go2rtc] WebSocket relay server running on port 3001');
+});
+
+const activeMjpegStreams = new Map(); // key: rtspUrl, value: { name, clients, lastFrame, mjpegReq }
 
 wss.on('connection', (ws, req) => {
     const urlParams = new URLSearchParams(req.url.split('?')[1]);
     const rtspUrl = urlParams.get('rtspUrl');
-    
-    if (!rtspUrl) {
-        ws.close();
-        return;
-    }
+    if (!rtspUrl) { ws.close(); return; }
 
     if (!activeMjpegStreams.has(rtspUrl)) {
-        console.log(`[MJPEG-WS] Khởi tạo luồng mới từ NVR: ${rtspUrl}`);
-
-        // Lấy cấu hình decode từ DB để tận dụng GPU/iGPU
-        const settingStmt = db.prepare('SELECT Value FROM Settings WHERE Key = ?');
-        const settingObj = settingStmt.get('GlobalTranscodeMode');
-        const transcodeMode = settingObj ? settingObj.Value : 'gpu_hybrid';
-
-        // Chọn hwaccel decode phù hợp với phần cứng
-        let hwDecodeOpts = ['-hwaccel', 'auto']; // fallback mặc định
-        if (transcodeMode === 'gpu_intel') {
-            hwDecodeOpts = ['-hwaccel', 'qsv']; 
-        } else if (transcodeMode === 'gpu_nvidia') {
-            hwDecodeOpts = ['-hwaccel', 'cuda']; 
-        } else if (transcodeMode === 'gpu_amd') {
-            hwDecodeOpts = ['-hwaccel', 'd3d11va'];
-        }
-
-        const command = ffmpeg(rtspUrl)
-            .inputOptions([
-                '-rtsp_transport', 'tcp',
-                ...hwDecodeOpts,
-                '-fflags', 'nobuffer',
-                '-flags', 'low_delay',
-                '-analyzeduration', '50000',
-                '-probesize', '50000',
-                '-rtbufsize', '512k',       // Giới hạn RTSP capture buffer — mặc định 3.5MB, giảm xuống 512KB
-                '-thread_queue_size', '4',  // Giảm input thread queue (mặc định 32)
-            ])
-            .outputOptions([
-                '-an',
-                '-threads', '1',            // 1 thread decode = ít reference frame buffer → tiết kiệm ~80-100MB/process
-                '-c:v', 'mjpeg',
-                '-q:v', '7',                // Chất lượng JPEG (tăng nhẹ từ 5→7 để đổi lấy tốc độ encode thấp hơn)
-                '-r', '12',                 // 12fps thay vì 15fps — giảm 20% CPU/RAM mỗi luồng
-                '-vf', 'scale=480:-2',      // Scale xuống 480px wide — grid view không cần 1080p!
-                                            // 1080p → 480p giảm buffer encode từ ~6MB xuống còn ~0.5MB/frame
-                '-f', 'image2pipe',
-                '-max_muxing_queue_size', '4', // Giảm muxing queue (mặc định 128)
-            ])
-            .on('error', (err) => {
-                console.error(`[MJPEG-WS] Lỗi FFmpeg: ${err.message}`);
-                const streamInfo = activeMjpegStreams.get(rtspUrl);
-                if (streamInfo) {
-                    streamInfo.clients.forEach(c => c.close());
-                    activeMjpegStreams.delete(rtspUrl);
-                }
-            });
-
-        const pipeStream = command.pipe();
-        
-        const MAX_BUF = 512 * 1024; // 512KB pre-alloc buffer mỗi luồng — đủ cho 1 frame 4K JPEG
+        const nameHash = Buffer.from(rtspUrl).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(-16);
         const streamInfo = {
-            command,
+            name: `pv_${nameHash}`,
             clients: new Set(),
-            buffer: Buffer.allocUnsafe(MAX_BUF),
-            bufLen: 0,
-            lastFrame: null
+            lastFrame: null,
+            mjpegReq: null
         };
         activeMjpegStreams.set(rtspUrl, streamInfo);
-
-        const JPEG_END = Buffer.from([0xFF, 0xD9]);
-
-        pipeStream.on('data', (chunk) => {
-            const info = activeMjpegStreams.get(rtspUrl);
-            if (!info) return;
-
-            // Ghi chunk vào pre-alloc buffer — không tạo Buffer mới mỗi lần
-            if (info.bufLen + chunk.length > info.buffer.length) {
-                // Mở rộng buffer nếu cần (hiếm xảy ra)
-                const newBuf = Buffer.allocUnsafe(info.bufLen + chunk.length + MAX_BUF);
-                info.buffer.copy(newBuf, 0, 0, info.bufLen);
-                info.buffer = newBuf;
-            }
-            chunk.copy(info.buffer, info.bufLen);
-            info.bufLen += chunk.length;
-
-            let searchStart = 0;
-            let endIdx;
-            while ((endIdx = info.buffer.indexOf(JPEG_END, searchStart, 'binary')) !== -1 && endIdx < info.bufLen) {
-                const frameEnd = endIdx + 2;
-                const frame = Buffer.from(info.buffer.slice(0, frameEnd)); // copy ra frame riêng
-
-                // Cache frame cuối để client mới có ảnh tức thì
-                info.lastFrame = frame;
-
-                // Broadcast — bỏ qua client đang bận (buffer WS > 64KB) để tránh RAM tích lũy
-                info.clients.forEach(clientWs => {
-                    if (clientWs.readyState === 1 && clientWs.bufferedAmount < 65536) {
-                        try { clientWs.send(frame, { binary: true }); } catch (e) {}
-                    }
-                });
-
-                // Dịch buffer về đầu — không tạo object mới
-                info.buffer.copy(info.buffer, 0, frameEnd, info.bufLen);
-                info.bufLen -= frameEnd;
-                searchStart = 0;
-            }
-
-            // Guard: nếu buffer vượt 1MB mà không tìm được JPEG end → reset
-            if (info.bufLen > 1024 * 1024) {
-                console.warn(`[MJPEG-WS] Buffer overflow, reset: ${rtspUrl}`);
-                info.bufLen = 0;
-            }
-        });
+        console.log(`[go2rtc] New stream: ${streamInfo.name}`);
+        initGo2rtcStream(rtspUrl, streamInfo); // không await — không block WS handler
     }
 
-    // Add this client to the stream
     const streamInfo = activeMjpegStreams.get(rtspUrl);
     streamInfo.clients.add(ws);
-    console.log(`[MJPEG-WS] Client kết nối. Camera: ${rtspUrl}. Tổng người xem: ${streamInfo.clients.size}`);
+    console.log(`[go2rtc] Client connected → ${streamInfo.name} (${streamInfo.clients.size} viewers)`);
 
-    // Gửi frame cache ngay để client có ảnh tức thì, không chờ frame kế tiếp
+    // Gửi frame cache ngay để client có ảnh tức thì
     if (streamInfo.lastFrame) {
-        try { ws.send(streamInfo.lastFrame); } catch (e) {}
+        try { ws.send(streamInfo.lastFrame); } catch(e) {}
     }
 
     ws.on('close', () => {
         const info = activeMjpegStreams.get(rtspUrl);
-        if (info) {
-            info.clients.delete(ws);
-            console.log(`[MJPEG-WS] Client ngắt kết nối. Camera: ${rtspUrl}. Còn lại: ${info.clients.size}`);
-            
-            if (info.clients.size === 0) {
-                console.log(`[MJPEG-WS] Không còn ai xem, tắt luồng NVR để tiết kiệm tài nguyên.`);
-                info.command.kill('SIGKILL');
-                activeMjpegStreams.delete(rtspUrl);
-            }
+        if (!info) return;
+        info.clients.delete(ws);
+        console.log(`[go2rtc] Client disconnected → ${info.name} (${info.clients.size} viewers)`);
+        if (info.clients.size === 0) {
+            console.log(`[go2rtc] No viewers, removing stream: ${info.name}`);
+            if (info.mjpegReq) { try { info.mjpegReq.destroy(); } catch(e) {} }
+            go2rtcRemoveStream(info.name);
+            activeMjpegStreams.delete(rtspUrl);
         }
     });
 });
+
+// Cleanup go2rtc khi Node.js shutdown
+process.on('exit', () => { if (go2rtcProc) { try { go2rtcProc.kill(); } catch(e) {} } });
+process.on('SIGINT', () => { if (go2rtcProc) { try { go2rtcProc.kill(); } catch(e) {} } process.exit(); });
 
 
 app.post('/api/stream/start', (req, res) => {
@@ -737,3 +794,4 @@ const config = {
 const nms = new NodeMediaServer(config);
 nms.run();
 console.log('Node Media Server (FLV) running on port 8000');
+
