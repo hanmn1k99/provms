@@ -12,71 +12,41 @@ const VideoCell = ({ camera, isMainStream = false }) => {
   const [flvUrl, setFlvUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [ptzCollapsed, setPtzCollapsed] = useState(false);
-  const canvasRef = useRef(null);
-  const wsRef = useRef(null);
-  const prevUrlRef = useRef(null); // Track URL cũ để revoke ngay lập tức, tránh memory leak
 
   useEffect(() => {
     let isMounted = true;
     
     if (camera) {
       setLoading(true);
-      if (isMainStream) {
-        const urlToPlay = camera.RtspMainStream;
-        axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
-          cameraId: camera.Id,
-          rtspUrl: urlToPlay
-        })
-        .then(res => {
-          if (res.data.success && isMounted) {
-            setFlvUrl(res.data.flvUrl);
-            setLoading(false);
-          }
-        })
-        .catch(err => {
-          console.error('Lỗi khi lấy luồng stream:', err);
-          if (isMounted) setLoading(false);
-        });
-      } else {
-        const wsUrl = `ws://${window.location.hostname}:3001/?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`;
-        const ws = new WebSocket(wsUrl);
-        ws.binaryType = 'arraybuffer';
-        wsRef.current = ws;
-
-        ws.onopen = () => { if (isMounted) setLoading(false); };
-
-        ws.onmessage = (event) => {
-          if (!canvasRef.current) return;
-          const img = canvasRef.current;
-          const blob = new Blob([event.data], { type: 'image/jpeg' });
-          const url = URL.createObjectURL(blob);
-          // Revoke URL cũ ngay lập tức khi frame mới đến — không chờ onload
-          // Đảm bảo chỉ có đúng 1 object URL tồn tại tại mỗi thời điểm
-          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-          prevUrlRef.current = url;
-          img.src = url;
-        };
-
-        ws.onerror = (err) => {
-          console.error('WebSocket Error:', err);
-          if (isMounted) setLoading(false);
-        };
-      }
+      const urlToPlay = isMainStream ? camera.RtspMainStream : (camera.RtspSubStream || camera.RtspMainStream);
+      
+      axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
+        cameraId: camera.Id,
+        rtspUrl: urlToPlay
+      })
+      .then(res => {
+        if (res.data.success && isMounted) {
+          setFlvUrl(res.data.flvUrl);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        console.error('Lỗi khi lấy luồng stream:', err);
+        if (isMounted) setLoading(false);
+      });
     } else {
       setLoading(false);
     }
 
     return () => {
       isMounted = false;
-      if (camera && isMainStream) {
+      if (camera) {
+        const urlToPlay = isMainStream ? camera.RtspMainStream : (camera.RtspSubStream || camera.RtspMainStream);
         axios.post(`http://${window.location.hostname}:3000/api/stream/stop`, {
           cameraId: camera.Id,
-          rtspUrl: camera.RtspMainStream
+          rtspUrl: urlToPlay
         }).catch(err => console.log('Lỗi khi dừng stream:', err));
       }
-      if (wsRef.current) wsRef.current.close();
-      // Dọn URL cuối cùng khi component unmount
-      if (prevUrlRef.current) { URL.revokeObjectURL(prevUrlRef.current); prevUrlRef.current = null; }
     };
   }, [camera, isMainStream]);
 
@@ -97,19 +67,12 @@ const VideoCell = ({ camera, isMainStream = false }) => {
   return (
     <>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
-        {loading && isMainStream ? (
+        {loading ? (
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'black' }}>
-            <span style={{ color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.875rem' }}>CONNECTING MAIN...</span>
+            <span style={{ color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.875rem' }}>CONNECTING...</span>
           </div>
         ) : (
-          isMainStream ? (
-            <FlvPlayer url={flvUrl} isMuted={true} />
-          ) : (
-            <img
-              ref={canvasRef}
-              style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000' }}
-            />
-          )
+          <FlvPlayer url={flvUrl} isMuted={true} />
         )}
       </div>
 
