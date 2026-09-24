@@ -11,6 +11,14 @@ const fs = require('fs');
 const http = require('http');
 const { spawn } = require('child_process');
 
+const go2rtcPath = path.join(__dirname, 'go2rtc.exe');
+let go2rtcProcess = null;
+if (fs.existsSync(go2rtcPath)) {
+    go2rtcProcess = spawn(go2rtcPath, [], { stdio: 'ignore' });
+    go2rtcProcess.on('error', err => console.error('[go2rtc] Error:', err));
+    console.log('[go2rtc] Started on port 1984 (API) and 8555 (WebRTC)');
+}
+
 // Thư mục log chuẩn theo AppData (được Electron truyền qua process.env.APPDATA_PATH)
 const LOG_DIR = process.env.APPDATA_PATH || path.join(os.homedir(), 'AppData', 'Roaming', 'minhhan.net', 'provms');
 const FFMPEG_LOG_PATH = path.join(LOG_DIR, 'ffmpeg.log');
