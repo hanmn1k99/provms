@@ -302,7 +302,7 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="admin-page-body" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)', zIndex: 1 }}>
+      <main className="admin-page-body" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
         
         {(needsSetup || activeTab === 'setup') && !isLoggedIn && (
           <div className="login-root" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

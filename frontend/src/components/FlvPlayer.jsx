@@ -105,10 +105,9 @@ const FlvPlayer = ({ url, isMuted = true }) => {
         ref={videoRef}
         style={{
           width: '100%', height: '100%',
-          objectFit: 'contain',
-          backgroundColor: 'black',
+          objectFit: 'fill',
+          backgroundColor: 'transparent',
           pointerEvents: 'none',
-          // visibility ẩn cho đến khi sẵn sàng để tránh flash xanh
           visibility: videoReady ? 'visible' : 'hidden'
         }}
         muted={isMuted}
