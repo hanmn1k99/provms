@@ -62,7 +62,7 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
         wsRef.current = null;
       }
     };
-  }, [camera, index, isMainStream]);
+  }, [camera, index]);
 
   // Dọn URL khi component unmount hoàn toàn
   useEffect(() => {
