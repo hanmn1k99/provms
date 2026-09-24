@@ -91,16 +91,6 @@ const FlvPlayer = ({ url, isMuted = true }) => {
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', backgroundColor: 'transparent' }}>
-      {/* Overlay đen che khuất màn xanh lá lúc khởi tạo decoder */}
-      {!videoReady && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 2,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <span style={{ color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.75rem' }}>BUFFERING...</span>
-        </div>
-      )}
       <video
         ref={videoRef}
         style={{

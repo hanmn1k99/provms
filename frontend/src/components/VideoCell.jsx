@@ -110,7 +110,7 @@ const VideoCell = ({ camera, isMainStream = false }) => {
   return (
     <>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
-        {/* Render ảnh MJPEG làm nền (poster) */}
+        {/* Render ảnh MJPEG làm nền (poster) chạy liên tục */}
         <img
           ref={canvasRef}
           style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000', position: 'absolute', top: 0, left: 0, zIndex: 1 }}
@@ -118,13 +118,7 @@ const VideoCell = ({ camera, isMainStream = false }) => {
         
         {isMainStream && (
           <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-            {flvUrl ? (
-               <FlvPlayer url={flvUrl} isMuted={true} />
-            ) : loading ? (
-               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                 <span style={{ color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.875rem' }}>UPGRADING TO MAIN...</span>
-               </div>
-            ) : null}
+            {flvUrl && <FlvPlayer url={flvUrl} isMuted={true} />}
           </div>
         )}
       </div>
