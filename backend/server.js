@@ -416,8 +416,10 @@ app.post('/api/stream/start', (req, res) => {
 
     let inputOptions = [
         '-rtsp_transport', 'tcp',
-        '-analyzeduration', '1000000', 
-        '-probesize', '5000000'
+        '-fflags', 'nobuffer',
+        '-flags', 'low_delay',
+        '-analyzeduration', '50000', 
+        '-probesize', '50000'
     ];
 
     let outputOptions = [
