@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-
+import FlvPlayer from './FlvPlayer';
 import {
   IoCameraOutline, IoChevronUpOutline, IoChevronDownOutline,
   IoChevronBackOutline as ChevronLeft, IoChevronForwardOutline as ChevronRight,
@@ -11,18 +11,19 @@ import {
 const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
   const [loading, setLoading] = useState(true);
   const [ptzCollapsed, setPtzCollapsed] = useState(true);
+  const [flvUrl, setFlvUrl] = useState(null);
+  const [showMainDelay, setShowMainDelay] = useState(false);
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
   const prevUrlRef = useRef(null); 
   const hasLoadedOnceRef = useRef(false);
 
-  // --- Luồng MJPEG (Chỉ chạy khi thu nhỏ, nhường connection cho Main Stream khi phóng to) ---
+  // --- Luồng MJPEG (Chạy liên tục không tắt) ---
   useEffect(() => {
     let isMounted = true;
     let timerId;
 
-    if (camera && !isMainStream) {
-      // Delay kết nối để tránh DDoS đầu ghi (NVR) khi load lưới. Bỏ qua delay nếu chỉ là thu nhỏ lại từ Main Stream.
+    if (camera) {
       const delayMs = hasLoadedOnceRef.current ? 0 : (index * 150); 
       
       timerId = setTimeout(() => {
@@ -74,8 +75,47 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
     };
   }, []);
 
+  // --- Luồng FLV Main Stream ---
+  useEffect(() => {
+    let isMounted = true;
+    let delayTimer;
 
-  
+    if (camera && isMainStream) {
+      // 1. Gửi request bắt đầu luồng FLV (ngầm)
+      axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
+        cameraId: camera.Id,
+        rtspUrl: camera.RtspMainStream
+      })
+      .then(res => {
+        if (res.data.success && isMounted) {
+          setFlvUrl(res.data.flvUrl);
+        }
+      })
+      .catch(err => {
+        console.error('Lỗi FLV', err);
+      });
+
+      // 2. Set timeout 4s để show main stream (tránh xám màn)
+      delayTimer = setTimeout(() => {
+        if (isMounted) setShowMainDelay(true);
+      }, 4000);
+
+    } else {
+      setFlvUrl(null);
+      setShowMainDelay(false);
+    }
+
+    return () => {
+      isMounted = false;
+      clearTimeout(delayTimer);
+      if (camera && isMainStream) {
+        axios.post(`http://${window.location.hostname}:3000/api/stream/stop`, {
+          cameraId: camera.Id,
+          rtspUrl: camera.RtspMainStream
+        }).catch(err => console.log('Lỗi dừng luồng', err));
+      }
+    };
+  }, [camera, isMainStream]);
 
   if (!camera) {
     return (
@@ -95,14 +135,22 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
     <>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         {/* Render ảnh MJPEG làm nền (poster) chạy liên tục */}
+        {/* Lớp này luôn hiển thị bên dưới. Trong lúc chờ 4s, luồng chính có opacity=0 nên ta sẽ thấy lớp này */}
         <img
           ref={canvasRef}
           style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000', position: 'absolute', top: 0, left: 0, zIndex: 1 }}
+          alt=""
         />
         
+        {/* Lớp luồng chính (FlvPlayer). Chỉ mounted khi isMainStream=true, nhưng chỉ visible (opacity=1) sau 4s */}
         {isMainStream && (
-          <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-            <iframe src={`http://${window.location.hostname}:1984/stream.html?src=${encodeURIComponent(camera.RtspMainStream)}&mode=webrtc,mse,mp4`} style={{ width: "100%", height: "100%", border: "none", pointerEvents: "none" }} />
+          <div style={{ 
+            width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 2,
+            opacity: showMainDelay ? 1 : 0,
+            transition: 'opacity 0.5s ease-in-out',
+            pointerEvents: 'none' // Cho phép click xuyên qua để double click thu nhỏ
+          }}>
+            {flvUrl && <FlvPlayer url={flvUrl} isMuted={true} />}
           </div>
         )}
       </div>
@@ -122,7 +170,6 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
           onDoubleClick={(e) => e.stopPropagation()}
         >
           {ptzCollapsed ? (
-            /* Trạng thái thu nhỏ: chỉ hiện nút icon nhỏ */
             <button
               onClick={() => setPtzCollapsed(false)}
               title="Mở PTZ"
@@ -138,14 +185,12 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
               PTZ
             </button>
           ) : (
-            /* Trạng thái mở rộng: full panel */
             <div style={{
               display: 'flex', flexDirection: 'column', gap: '10px',
               background: 'rgba(0,0,0,0.55)', padding: '12px',
               borderRadius: '12px', backdropFilter: 'blur(4px)',
               border: '1px solid rgba(255,255,255,0.1)'
             }}>
-              {/* Header PTZ + nút collapse */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
                 <span style={{ color: 'white', fontSize: '0.7rem', fontWeight: 'bold', letterSpacing: '0.05em' }}>PTZ CTRL</span>
                 <button
@@ -157,7 +202,6 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
                 </button>
               </div>
 
-              {/* D-Pad */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', alignSelf: 'center' }}>
                 <div />
                 <button className="ptz-btn" onMouseDown={() => handlePtz('Up', 'start')} onMouseUp={() => handlePtz('Up', 'stop')} onMouseLeave={() => handlePtz('Up', 'stop')}><IoChevronUpOutline size={18}/></button>
@@ -167,7 +211,6 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
                 <button className="ptz-btn" onMouseDown={() => handlePtz('Right', 'start')} onMouseUp={() => handlePtz('Right', 'stop')} onMouseLeave={() => handlePtz('Right', 'stop')}><ChevronRight size={18}/></button>
               </div>
 
-              {/* Zoom */}
               <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                 <button className="ptz-btn" onMouseDown={() => handlePtz('ZoomIn', 'start')} onMouseUp={() => handlePtz('ZoomIn', 'stop')} onMouseLeave={() => handlePtz('ZoomIn', 'stop')}><ZoomIn size={16}/></button>
                 <button className="ptz-btn" onMouseDown={() => handlePtz('ZoomOut', 'start')} onMouseUp={() => handlePtz('ZoomOut', 'stop')} onMouseLeave={() => handlePtz('ZoomOut', 'stop')}><ZoomOut size={16}/></button>
