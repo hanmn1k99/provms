@@ -16,7 +16,53 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
   const prevUrlRef = useRef(null); 
   const hasLoadedOnceRef = useRef(false);
 
-  
+  // --- Luồng MJPEG (Chỉ chạy khi thu nhỏ, nhường connection cho Main Stream khi phóng to) ---
+  useEffect(() => {
+    let isMounted = true;
+    let timerId;
+
+    if (camera && !isMainStream) {
+      // Delay kết nối để tránh DDoS đầu ghi (NVR) khi load lưới. Bỏ qua delay nếu chỉ là thu nhỏ lại từ Main Stream.
+      const delayMs = hasLoadedOnceRef.current ? 0 : (index * 150); 
+      
+      timerId = setTimeout(() => {
+        hasLoadedOnceRef.current = true;
+        if (!isMounted) return;
+        const wsUrl = `ws://${window.location.hostname}:3001/?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`;
+        const ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+        wsRef.current = ws;
+
+        ws.onopen = () => { if (isMounted) setLoading(false); };
+
+        ws.onmessage = (event) => {
+          if (!canvasRef.current) return;
+          const img = canvasRef.current;
+          const blob = new Blob([event.data], { type: 'image/jpeg' });
+          const url = URL.createObjectURL(blob);
+          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+          prevUrlRef.current = url;
+          img.src = url;
+        };
+
+        ws.onerror = (err) => {
+          console.error('WebSocket Error:', err);
+          if (isMounted) setLoading(false);
+        };
+      }, delayMs);
+    } else {
+      setLoading(false);
+    }
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timerId);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [camera, index, isMainStream]);
 
   // Dọn URL khi component unmount hoàn toàn
   useEffect(() => {
