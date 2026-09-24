@@ -22,7 +22,7 @@ function App() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState('grid');
-  const [gridSize, setGridSize] = useState(4); // 4 = 2x2
+  const [gridSize, setGridSize] = useState(() => { const saved = localStorage.getItem("provms_grid_size"); return saved ? parseInt(saved, 10) : 64; }); useEffect(() => { const handleStorage = (e) => { if (e.key === "provms_grid_size" && e.newValue) setGridSize(parseInt(e.newValue, 10)); }; window.addEventListener("storage", handleStorage); return () => window.removeEventListener("storage", handleStorage); }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [needsSetup, setNeedsSetup] = useState(false);
@@ -237,7 +237,7 @@ function App() {
               
               <select 
                 value={gridSize} 
-                onChange={e => setGridSize(Number(e.target.value))}
+                onChange={e => { const v = Number(e.target.value); setGridSize(v); localStorage.setItem("provms_grid_size", v); }}
                 className="header-select"
               >
                 <option value={1}>1 Cam</option>
