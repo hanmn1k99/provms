@@ -16,39 +16,44 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
   const wsRef = useRef(null);
   const prevUrlRef = useRef(null); 
 
+  const connectMjpegRef = useRef(null);
+
   // --- Luồng MJPEG (Luôn chạy bất kể phóng to hay thu nhỏ) ---
   useEffect(() => {
     let isMounted = true;
     let timerId;
 
+    const connectMjpeg = () => {
+      if (!isMounted || wsRef.current) return; // Không kết nối lại nếu đã có
+      const wsUrl = `ws://${window.location.hostname}:3001/?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`;
+      const ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+      wsRef.current = ws;
+
+      ws.onopen = () => { if (isMounted) setLoading(false); };
+
+      ws.onmessage = (event) => {
+        if (!canvasRef.current) return;
+        const img = canvasRef.current;
+        const blob = new Blob([event.data], { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+        if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+        prevUrlRef.current = url;
+        img.src = url;
+      };
+
+      ws.onerror = (err) => {
+        console.error('WebSocket Error:', err);
+        if (isMounted) setLoading(false);
+      };
+    };
+
+    connectMjpegRef.current = connectMjpeg;
+
     if (camera) {
       // Delay kết nối để tránh DDoS đầu ghi (NVR) và hệ điều hành khi load 64 cam cùng lúc
       const delayMs = index * 150; 
-      
-      timerId = setTimeout(() => {
-        if (!isMounted) return;
-        const wsUrl = `ws://${window.location.hostname}:3001/?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`;
-        const ws = new WebSocket(wsUrl);
-        ws.binaryType = 'arraybuffer';
-        wsRef.current = ws;
-
-        ws.onopen = () => { if (isMounted) setLoading(false); };
-
-        ws.onmessage = (event) => {
-          if (!canvasRef.current) return;
-          const img = canvasRef.current;
-          const blob = new Blob([event.data], { type: 'image/jpeg' });
-          const url = URL.createObjectURL(blob);
-          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-          prevUrlRef.current = url;
-          img.src = url;
-        };
-
-        ws.onerror = (err) => {
-          console.error('WebSocket Error:', err);
-          if (isMounted) setLoading(false);
-        };
-      }, delayMs);
+      timerId = setTimeout(connectMjpeg, delayMs);
     } else {
       setLoading(false);
     }
@@ -56,9 +61,19 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
     return () => {
       isMounted = false;
       clearTimeout(timerId);
-      if (wsRef.current) wsRef.current.close();
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
   }, [camera, index]);
+
+  // Bắt sự kiện phóng to: Nếu user click phóng to trước khi hết thời gian delay stagger, kết nối ngay lập tức!
+  useEffect(() => {
+    if (isMainStream && connectMjpegRef.current && !wsRef.current) {
+      connectMjpegRef.current();
+    }
+  }, [isMainStream]);
 
   // --- Luồng FLV Main Stream (Chỉ chạy khi phóng to) ---
   useEffect(() => {
