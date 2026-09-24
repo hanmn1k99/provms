@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import FlvPlayer from './FlvPlayer';
+
 import {
   IoCameraOutline, IoChevronUpOutline, IoChevronDownOutline,
   IoChevronBackOutline as ChevronLeft, IoChevronForwardOutline as ChevronRight,
@@ -9,7 +9,7 @@ import {
 } from 'react-icons/io5';
 
 const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
-  const [flvUrl, setFlvUrl] = useState(null); const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [ptzCollapsed, setPtzCollapsed] = useState(true);
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
@@ -75,37 +75,7 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
   }, []);
 
 
-  // --- Luồng FLV Main Stream ---
-  useEffect(() => {
-    let isMounted = true;
-    if (camera && isMainStream) {
-      const urlToPlay = camera.RtspMainStream;
-      axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
-        cameraId: camera.Id,
-        rtspUrl: urlToPlay
-      })
-      .then(res => {
-        if (res.data.success && isMounted) {
-          setFlvUrl(res.data.flvUrl);
-        }
-      })
-      .catch(err => {
-        console.error('Lỗi', err);
-      });
-    } else {
-      setFlvUrl(null);
-    }
-
-    return () => {
-      isMounted = false;
-      if (camera && isMainStream) {
-        axios.post(`http://${window.location.hostname}:3000/api/stream/stop`, {
-          cameraId: camera.Id,
-          rtspUrl: camera.RtspMainStream
-        }).catch(err => console.log('Lỗi', err));
-      }
-    };
-  }, [camera, isMainStream]);
+  
 
   if (!camera) {
     return (
@@ -132,7 +102,7 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
         
         {isMainStream && (
           <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-            {flvUrl && <FlvPlayer url={flvUrl} isMuted={true} />}
+            <iframe src={`http://${window.location.hostname}:1984/stream.html?src=${encodeURIComponent(camera.RtspMainStream)}&mode=webrtc,mse,mp4`} style={{ width: "100%", height: "100%", border: "none", pointerEvents: "none" }} />
           </div>
         )}
       </div>
