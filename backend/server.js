@@ -437,7 +437,7 @@ app.post('/api/stream/start', (req, res) => {
 
     // Cả main stream và sub stream đều là H.264 → copy trực tiếp, 0% CPU encode
     // FFmpeg chỉ remux RTSP → RTMP, không decode/encode gì cả
-    outputOptions.push('-c:v', 'copy');
+    outputOptions.push('-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-g', '15');
     console.log(`[Stream] H.264 direct copy — 0 transcode overhead`);
 
 
@@ -640,7 +640,7 @@ const config = {
     rtmp: {
         port: 1935,
         chunk_size: 60000,
-        gop_cache: false,
+        gop_cache: true,
         ping: 30,
         ping_timeout: 60
     },
