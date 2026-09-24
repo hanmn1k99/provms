@@ -100,6 +100,7 @@ function createWindow() {
     if (!app.isQuiting) {
       event.preventDefault();
       mainWindow.hide();
+      secondaryWindows.forEach(w => w.hide());
     }
     return false;
   });
@@ -110,7 +111,11 @@ function createTray() {
   tray = new Tray(iconPath);
   
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'Mở ProVMS', click: () => { mainWindow.show(); } },
+    { label: 'Mở ProVMS', click: () => { 
+        mainWindow.show(); 
+        secondaryWindows.forEach(w => w.show());
+      } 
+    },
     { type: 'separator' },
     { label: 'Thoát hoàn toàn', click: () => {
         app.isQuiting = true;
@@ -125,8 +130,10 @@ function createTray() {
   tray.on('click', () => {
     if (mainWindow.isVisible()) {
       mainWindow.hide();
+      secondaryWindows.forEach(w => w.hide());
     } else {
       mainWindow.show();
+      secondaryWindows.forEach(w => w.show());
     }
   });
 }
