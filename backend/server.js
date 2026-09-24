@@ -652,5 +652,5 @@ const config = {
 
 const nms = new NodeMediaServer(config);
 nms.run();
-console.log('Node Media Server (FLV) running on port 8000');
+console.log('Node Media Server (FLV) running on port 8000'); const cleanupAndExit = () => { console.log('[Server] Cleaning up...'); if (typeof go2rtcProcess !== 'undefined' && go2rtcProcess) { try { go2rtcProcess.kill('SIGKILL'); } catch (e) {} } if (typeof activeMjpegStreams !== 'undefined') { activeMjpegStreams.forEach(info => { try { info.command.kill('SIGKILL'); } catch(e){} }); } if (typeof activeStreams !== 'undefined') { activeStreams.forEach(info => { try { info.command.kill('SIGKILL'); } catch(e){} }); } process.exit(0); }; process.on('SIGINT', cleanupAndExit); process.on('SIGTERM', cleanupAndExit);
 
