@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import WebRTCPlayer from './WebRTCPlayer';
+import FlvPlayer from './FlvPlayer';
 import {
   IoCameraOutline, IoChevronUpOutline, IoChevronDownOutline,
   IoChevronBackOutline as ChevronLeft, IoChevronForwardOutline as ChevronRight,
@@ -9,7 +9,7 @@ import {
 } from 'react-icons/io5';
 
 const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
-  const [loading, setLoading] = useState(true);
+  const [flvUrl, setFlvUrl] = useState(null); const [loading, setLoading] = useState(true);
   const [ptzCollapsed, setPtzCollapsed] = useState(true);
   const canvasRef = useRef(null);
   const wsRef = useRef(null);
@@ -99,7 +99,7 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
         
         {isMainStream && (
           <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-            <WebRTCPlayer url={camera.RtspMainStream} isMuted={true} />
+            {flvUrl && <FlvPlayer url={flvUrl} isMuted={true} />}
           </div>
         )}
       </div>
