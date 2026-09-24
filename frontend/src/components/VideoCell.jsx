@@ -74,6 +74,39 @@ const VideoCell = ({ camera, isMainStream = false, index = 0 }) => {
     };
   }, []);
 
+
+  // --- Luồng FLV Main Stream ---
+  useEffect(() => {
+    let isMounted = true;
+    if (camera && isMainStream) {
+      const urlToPlay = camera.RtspMainStream;
+      axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
+        cameraId: camera.Id,
+        rtspUrl: urlToPlay
+      })
+      .then(res => {
+        if (res.data.success && isMounted) {
+          setFlvUrl(res.data.flvUrl);
+        }
+      })
+      .catch(err => {
+        console.error('Lỗi', err);
+      });
+    } else {
+      setFlvUrl(null);
+    }
+
+    return () => {
+      isMounted = false;
+      if (camera && isMainStream) {
+        axios.post(`http://${window.location.hostname}:3000/api/stream/stop`, {
+          cameraId: camera.Id,
+          rtspUrl: camera.RtspMainStream
+        }).catch(err => console.log('Lỗi', err));
+      }
+    };
+  }, [camera, isMainStream]);
+
   if (!camera) {
     return (
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
