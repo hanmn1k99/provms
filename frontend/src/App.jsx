@@ -8,6 +8,7 @@ import './admin.css';
 import './App.css';
 
 function App() {
+  const isViewerMode = useMemo(() => new URLSearchParams(window.location.search).get('mode') === 'viewer', []);
   const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('isLoggedIn') === 'true');
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -216,17 +217,23 @@ function App() {
         <div className="header-group">
           <div className="header-subgroup">
             <img src="/logo.png" alt="ProVMS Logo" className="logo-img" />
-            <h1 className="header-title hide-text-1400">ProVMS Enterprise</h1>
+            <h1 className="header-title hide-text-1400">
+              ProVMS Enterprise {isViewerMode && <span style={{fontSize: '0.8rem', color: 'var(--accent)', marginLeft: '10px'}}>[Màn phụ]</span>}
+            </h1>
           </div>
           
           <div className="header-subgroup">
-            <button onClick={() => setActiveTab('grid')} className={`header-btn ${activeTab === 'grid' ? 'active' : 'inactive'}`}>
-              Live View
-            </button>
-            {isLoggedIn && (
-              <button onClick={() => setActiveTab('settings')} className={`header-btn ${activeTab === 'settings' ? 'active' : 'inactive'}`}>
-                Cài đặt
-              </button>
+            {!isViewerMode && (
+              <>
+                <button onClick={() => setActiveTab('grid')} className={`header-btn ${activeTab === 'grid' ? 'active' : 'inactive'}`}>
+                  Live View
+                </button>
+                {isLoggedIn && (
+                  <button onClick={() => setActiveTab('settings')} className={`header-btn ${activeTab === 'settings' ? 'active' : 'inactive'}`}>
+                    Cài đặt
+                  </button>
+                )}
+              </>
             )}
           </div>
           
@@ -259,44 +266,48 @@ function App() {
         </div>
 
         <div className="header-group">
-          <button 
-            onClick={() => {
-              if (window.electronAPI?.openSecondaryWindow) {
-                window.electronAPI.openSecondaryWindow();
-              } else {
-                // Fallback cho browser (dev mode)
-                window.open(window.location.origin + '?mode=viewer', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no');
-              }
-            }}
-            className="header-btn header-btn-outline"
-          >
-            <IoDesktopOutline size={16} />
-            <span className="hide-text-1400">Mở màn phụ</span>
-          </button>
+          {!isViewerMode && (
+            <button 
+              onClick={() => {
+                if (window.electronAPI?.openSecondaryWindow) {
+                  window.electronAPI.openSecondaryWindow();
+                } else {
+                  // Fallback cho browser (dev mode)
+                  window.open(window.location.origin + '?mode=viewer', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no');
+                }
+              }}
+              className="header-btn header-btn-outline"
+            >
+              <IoDesktopOutline size={16} />
+              <span className="hide-text-1400">Mở màn phụ</span>
+            </button>
+          )}
 
-          {isLoggedIn ? (
-            <div className="header-subgroup">
-              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }} className="hide-text-1200">
-                <div style={{ fontWeight: 600, fontSize: '0.9rem', lineHeight: '1' }}>{currentUser?.FullName || 'Admin'}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>@{currentUser?.Username}</div>
+          {!isViewerMode && (
+            isLoggedIn ? (
+              <div className="header-subgroup">
+                <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', justifyContent: 'center' }} className="hide-text-1200">
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', lineHeight: '1' }}>{currentUser?.FullName || 'Admin'}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>@{currentUser?.Username}</div>
+                </div>
+                <div className="avatar-circle">
+                  <IoShieldCheckmarkOutline size={16} />
+                </div>
+                <button onClick={handleLogout} className="header-btn header-btn-danger">
+                  <IoLogOutOutline size={14} />
+                  <span className="hide-text-1200">Đăng xuất</span>
+                </button>
               </div>
-              <div className="avatar-circle">
-                <IoShieldCheckmarkOutline size={16} />
-              </div>
-              <button onClick={handleLogout} className="header-btn header-btn-danger">
-                <IoLogOutOutline size={14} />
-                <span className="hide-text-1200">Đăng xuất</span>
-              </button>
-            </div>
-          ) : (
-            needsSetup ? (
-              <button onClick={() => setActiveTab('setup')} className="header-btn active">
-                Thiết lập
-              </button>
             ) : (
-              <button onClick={() => setActiveTab('login')} className="header-btn active">
-                Đăng nhập
-              </button>
+              needsSetup ? (
+                <button onClick={() => setActiveTab('setup')} className="header-btn active">
+                  Thiết lập
+                </button>
+              ) : (
+                <button onClick={() => setActiveTab('login')} className="header-btn active">
+                  Đăng nhập
+                </button>
+              )
             )
           )}
         </div>
