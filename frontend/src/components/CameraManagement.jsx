@@ -152,6 +152,44 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
     }
   };
 
+  const handleExportCameras = () => {
+    if (!cameras || cameras.length === 0) {
+      showToast?.('Không có camera nào để xuất', 'warning');
+      return;
+    }
+
+    const exportData = cameras.map(cam => {
+      let ch = 1;
+      let brand = 'Khác';
+      if (cam.RtspMainStream) {
+        if (cam.RtspMainStream.includes('Streaming/Channels/')) {
+          brand = 'Hikvision';
+          const match = cam.RtspMainStream.match(/Channels\/(\d+)01/);
+          if (match) ch = parseInt(match[1]);
+        } else if (cam.RtspMainStream.includes('cam/realmonitor')) {
+          brand = 'Dahua';
+          const match = cam.RtspMainStream.match(/channel=(\d+)/);
+          if (match) ch = parseInt(match[1]);
+        }
+      }
+
+      return {
+        'Tên Camera': cam.Name || '',
+        'IP': cam.IpAddress || '',
+        'Kênh': ch,
+        'Tài khoản': cam.Username || '',
+        'Mật khẩu': cam.Password || '',
+        'Hãng': brand
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    ws['!cols'] = [{wch: 25}, {wch: 20}, {wch: 10}, {wch: 15}, {wch: 15}, {wch: 15}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cameras');
+    XLSX.writeFile(wb, 'Danh_Sach_Camera_ProVMS.xlsx');
+  };
+
   const handleDownloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([{
       'Tên Camera': 'Camera Cổng chính',
@@ -273,8 +311,13 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
             <IoCloudDownloadOutline size={16} /> Tải Mẫu Excel
           </button>
           
-          <input 
-            type="file" 
+          <button 
+              onClick={handleExportCameras}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#eab308', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'default', fontWeight: 500, fontSize: '0.9rem' }}
+            >
+              <IoCloudDownloadOutline size={16} /> Xuất Excel
+            </button>
+            <input 
             accept=".xlsx, .xls, .csv" 
             style={{ display: 'none' }} 
             ref={fileInputRef}
@@ -336,9 +379,9 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
                   <td style={{ padding: '15px', fontWeight: 500 }}>{cam.Name}</td>
                   <td style={{ padding: '15px', color: 'var(--text-muted)' }}>{cam.IpAddress || 'N/A'}</td>
                   <td style={{ padding: '15px' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', whiteSpace: 'nowrap' }}>{cam.RtspMainStream}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', whiteSpace: 'nowrap' }}>{cam.RtspSubStream}</div>
-                  </td>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', whiteSpace: 'nowrap' }}>Main: rtsp://***</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', whiteSpace: 'nowrap' }}>Sub: rtsp://***</div>
+                    </td>
                   <td style={{ padding: '15px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <button className="btn btn-sm btn-ghost" onClick={() => handleOpenModal(cam)}>
