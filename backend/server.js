@@ -388,6 +388,7 @@ wss.on('connection', (ws, req) => {
 });
 
 
+
 app.post('/api/stream/start', (req, res) => {
     const { cameraId, rtspUrl } = req.body;
     
@@ -395,32 +396,30 @@ app.post('/api/stream/start', (req, res) => {
         return res.status(400).json({ error: 'RTSP URL is missing' });
     }
 
-    // Lấy 8 ký tự cuối cùng của chuỗi Base64 để đảm bảo phân biệt được Main và Sub (khác nhau ở đuôi 101/102)
     const base64Url = Buffer.from(rtspUrl).toString('base64').replace(/[^a-zA-Z0-9]/g, '');
     const urlHash = base64Url.substring(base64Url.length - 12);
-    const streamId = `cam_${cameraId}_${urlHash}`;
+    const baseStreamId = `cam_${cameraId}_${urlHash}`;
     
-    // Sử dụng WebSocket (ws://) thay vì HTTP để vượt qua giới hạn 6 kết nối đồng thời của trình duyệt
-    const flvUrl = `ws://${req.hostname}:8000/live/${streamId}.flv`;
-
-    if (activeStreams.has(streamId)) {
-        const existing = activeStreams.get(streamId);
+    if (activeStreams.has(baseStreamId)) {
+        const existing = activeStreams.get(baseStreamId);
         if (existing.rtspUrl === rtspUrl) {
             existing.viewers = (existing.viewers || 1) + 1;
             if (existing.killTimeout) {
                 clearTimeout(existing.killTimeout);
                 existing.killTimeout = null;
-                console.log(`[Stream] Đã hủy lệnh dừng luồng ${streamId} vì có Client kết nối lại.`);
+                console.log(`[Stream] Đã hủy lệnh dừng luồng ${baseStreamId}`);
             }
-            return res.json({ success: true, flvUrl, status: 'already_running' });
+            return res.json({ success: true, flvUrl: existing.flvUrl, status: 'already_running' });
         } else {
-            console.log(`[Stream] Phát hiện Link mới, tắt luồng cũ của Camera ${cameraId}`);
+            console.log(`[Stream] Link mới, tắt luồng cũ của ${baseStreamId}`);
             existing.command.kill('SIGKILL');
-            activeStreams.delete(streamId);
+            activeStreams.delete(baseStreamId);
         }
     }
 
-    console.log(`[Stream] Khởi động luồng cho Camera ${cameraId}: ${rtspUrl}`);
+    // Tạo ID duy nhất mỗi lần chạy để tránh đụng độ Node Media Server khi tắt/bật lại quá nhanh
+    const uniqueStreamId = `${baseStreamId}_${Date.now()}`;
+    const flvUrl = `ws://${req.hostname}:8000/live/${uniqueStreamId}.flv`;
 
     let inputOptions = [
         '-rtsp_transport', 'tcp',
@@ -449,27 +448,27 @@ app.post('/api/stream/start', (req, res) => {
     const command = ffmpeg(rtspUrl)
         .inputOptions(inputOptions)
         .addOptions(outputOptions)
-        .output(`rtmp://localhost:1935/live/${streamId}`)
+        .output(`rtmp://localhost:1935/live/${uniqueStreamId}`)
         .on('start', (cmd) => {
             console.log(`[FFmpeg] Bắt đầu: ${cmd}`);
-            logLine(`--- START ${streamId} ---`);
+            logLine(`--- START ${baseStreamId} ---`);
             logLine(`CMD: ${cmd}`);
         })
         .on('stderr', (line) => logLine(line))
         .on('error', (err) => {
-            console.error(`[FFmpeg] Lỗi luồng ${streamId}: ${err.message}`);
+            console.error(`[FFmpeg] Lỗi luồng ${baseStreamId}: ${err.message}`);
             logLine(`ERROR: ${err.message}`);
-            logLine(`--- END ${streamId} ---\n`);
+            logLine(`--- END ${baseStreamId} ---\n`);
             activeStreams.delete(streamId);
         })
         .on('end', () => {
-            console.log(`[FFmpeg] Kết thúc luồng ${streamId}`);
-            logLine(`--- END ${streamId} ---\n`);
+            console.log(`[FFmpeg] Kết thúc luồng ${baseStreamId}`);
+            logLine(`--- END ${baseStreamId} ---\n`);
             activeStreams.delete(streamId);
         });
 
     command.run();
-    activeStreams.set(streamId, { command, rtspUrl, viewers: 1 });
+    activeStreams.set(baseStreamId, { command, rtspUrl, viewers: 1, flvUrl });
 
     res.json({ success: true, flvUrl, status: 'started' });
 });
@@ -508,12 +507,12 @@ app.post('/api/stream/stop', (req, res) => {
     if (activeStreams.has(streamId)) {
         const existing = activeStreams.get(streamId);
         existing.viewers = (existing.viewers || 1) - 1;
-        console.log(`[Stream] Yêu cầu dừng từ Client. Số viewer còn lại của ${streamId}: ${existing.viewers}`);
+        console.log(`[Stream] Yêu cầu dừng từ Client. Số viewer còn lại của ${baseStreamId}: ${existing.viewers}`);
         
         if (existing.viewers <= 0) {
-            console.log(`[Stream] Lên lịch dừng luồng ${streamId} sau 3 giây...`);
+            console.log(`[Stream] Lên lịch dừng luồng ${baseStreamId} sau 3 giây...`);
             existing.killTimeout = setTimeout(() => {
-                console.log(`[Stream] Đã hết 3 giây, dừng hẳn luồng ${streamId}.`);
+                console.log(`[Stream] Đã hết 3 giây, dừng hẳn luồng ${baseStreamId}.`);
                 existing.command.kill('SIGKILL');
                 activeStreams.delete(streamId);
             }, 3000);
