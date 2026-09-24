@@ -199,18 +199,6 @@ function App() {
         </div>
       )}
 
-      {/* Màn hình Xem đơn (Luồng chính) */}
-      {expandedCamera && (
-        <div 
-          onDoubleClick={() => setExpandedCamera(null)}
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, background: '#000', display: 'flex', flexDirection: 'column', cursor: 'default', userSelect: 'none', WebkitUserSelect: 'none' }}
-          draggable={false}
-        >
-          <div style={{ flex: 1, position: 'relative' }}>
-            <VideoCell camera={expandedCamera} isMainStream={true} />
-          </div>
-        </div>
-      )}
 
       {/* Thanh Menu Header */}
       <header className="main-header">
@@ -430,32 +418,48 @@ function App() {
                 gridTemplateColumns: `repeat(${gridSize === 32 ? 8 : Math.ceil(Math.sqrt(gridSize))}, minmax(0, 1fr))`,
                 gridTemplateRows: `repeat(${gridSize === 32 ? 4 : Math.ceil(Math.sqrt(gridSize))}, minmax(0, 1fr))`
               }}>
-                {Array.from({ length: gridSize }).map((_, i) => (
-                  <div 
-                    key={i} 
-                    onDoubleClick={() => { if (displayCameras[i]) setExpandedCamera(displayCameras[i]); }}
-                    style={{ 
-                      position: 'relative', 
-                      background: '#000', 
-                      borderRadius: '12px', 
-                      overflow: 'hidden', 
-                      border: '1px solid var(--border)',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                      width: '100%',
-                      height: '100%',
-                      cursor: 'default',
-                      userSelect: 'none',
-                      WebkitUserSelect: 'none'
-                    }}
-                    draggable={false}
-                  >
-                    {expandedCamera ? (
-                      <div style={{ width: '100%', height: '100%', backgroundColor: '#000' }} />
-                    ) : (
-                      <VideoCell camera={displayCameras[i]} isMainStream={gridSize === 1} />
-                    )}
-                  </div>
-                ))}
+                {Array.from({ length: gridSize }).map((_, i) => {
+                  const isExpanded = expandedCamera && displayCameras[i] && expandedCamera.Id === displayCameras[i].Id;
+                  const isHidden = expandedCamera && !isExpanded;
+                  return (
+                    <div 
+                      key={i} 
+                      onDoubleClick={() => { 
+                        if (displayCameras[i]) {
+                          if (expandedCamera) setExpandedCamera(null);
+                          else setExpandedCamera(displayCameras[i]);
+                        }
+                      }}
+                      style={isExpanded ? {
+                        position: 'fixed',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        zIndex: 99999,
+                        background: '#000',
+                        cursor: 'default',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none'
+                      } : { 
+                        display: isHidden ? 'none' : 'block',
+                        position: 'relative', 
+                        background: '#000', 
+                        borderRadius: '12px', 
+                        overflow: 'hidden', 
+                        border: '1px solid var(--border)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        width: '100%',
+                        height: '100%',
+                        cursor: 'default',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none'
+                      }}
+                      draggable={false}
+                    >
+                      {!isHidden && (
+                        <VideoCell camera={displayCameras[i]} isMainStream={isExpanded || gridSize === 1} />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

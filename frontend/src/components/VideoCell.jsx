@@ -75,10 +75,18 @@ const VideoCell = ({ camera, isMainStream = false }) => {
         }).catch(err => console.log('Lỗi khi dừng stream:', err));
       }
       if (wsRef.current) wsRef.current.close();
-      // Dọn URL cuối cùng khi component unmount
-      if (prevUrlRef.current) { URL.revokeObjectURL(prevUrlRef.current); prevUrlRef.current = null; }
     };
   }, [camera, isMainStream]);
+
+  // Dọn URL khi component unmount hoàn toàn
+  useEffect(() => {
+    return () => {
+      if (prevUrlRef.current) { 
+        URL.revokeObjectURL(prevUrlRef.current); 
+        prevUrlRef.current = null; 
+      }
+    };
+  }, []);
 
   if (!camera) {
     return (
@@ -97,19 +105,22 @@ const VideoCell = ({ camera, isMainStream = false }) => {
   return (
     <>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
-        {loading && isMainStream ? (
-          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'black' }}>
-            <span style={{ color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.875rem' }}>CONNECTING MAIN...</span>
+        {/* Render ảnh MJPEG làm nền (poster) */}
+        <img
+          ref={canvasRef}
+          style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000', position: 'absolute', top: 0, left: 0, zIndex: 1 }}
+        />
+        
+        {isMainStream && (
+          <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+            {flvUrl ? (
+               <FlvPlayer url={flvUrl} isMuted={true} />
+            ) : loading ? (
+               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                 <span style={{ color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.875rem' }}>UPGRADING TO MAIN...</span>
+               </div>
+            ) : null}
           </div>
-        ) : (
-          isMainStream ? (
-            <FlvPlayer url={flvUrl} isMuted={true} />
-          ) : (
-            <img
-              ref={canvasRef}
-              style={{ width: '100%', height: '100%', objectFit: 'fill', backgroundColor: '#000' }}
-            />
-          )
         )}
       </div>
 
