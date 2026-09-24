@@ -16,54 +16,60 @@ const VideoCell = ({ camera, isMainStream = false }) => {
   const wsRef = useRef(null);
   const prevUrlRef = useRef(null); // Track URL cũ để revoke ngay lập tức, tránh memory leak
 
+  // --- Luồng MJPEG (Luôn chạy bất kể phóng to hay thu nhỏ) ---
   useEffect(() => {
     let isMounted = true;
-    
     if (camera) {
-      setLoading(true);
-      if (isMainStream) {
-        const urlToPlay = camera.RtspMainStream;
-        axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
-          cameraId: camera.Id,
-          rtspUrl: urlToPlay
-        })
-        .then(res => {
-          if (res.data.success && isMounted) {
-            setFlvUrl(res.data.flvUrl);
-            setLoading(false);
-          }
-        })
-        .catch(err => {
-          console.error('Lỗi khi lấy luồng stream:', err);
-          if (isMounted) setLoading(false);
-        });
-      } else {
-        const wsUrl = `ws://${window.location.hostname}:3001/?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`;
-        const ws = new WebSocket(wsUrl);
-        ws.binaryType = 'arraybuffer';
-        wsRef.current = ws;
+      const wsUrl = `ws://${window.location.hostname}:3001/?rtspUrl=${encodeURIComponent(camera.RtspSubStream || camera.RtspMainStream)}`;
+      const ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+      wsRef.current = ws;
 
-        ws.onopen = () => { if (isMounted) setLoading(false); };
+      ws.onopen = () => { if (isMounted) setLoading(false); };
 
-        ws.onmessage = (event) => {
-          if (!canvasRef.current) return;
-          const img = canvasRef.current;
-          const blob = new Blob([event.data], { type: 'image/jpeg' });
-          const url = URL.createObjectURL(blob);
-          // Revoke URL cũ ngay lập tức khi frame mới đến — không chờ onload
-          // Đảm bảo chỉ có đúng 1 object URL tồn tại tại mỗi thời điểm
-          if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-          prevUrlRef.current = url;
-          img.src = url;
-        };
+      ws.onmessage = (event) => {
+        if (!canvasRef.current) return;
+        const img = canvasRef.current;
+        const blob = new Blob([event.data], { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+        if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+        prevUrlRef.current = url;
+        img.src = url;
+      };
 
-        ws.onerror = (err) => {
-          console.error('WebSocket Error:', err);
-          if (isMounted) setLoading(false);
-        };
-      }
+      ws.onerror = (err) => {
+        console.error('WebSocket Error:', err);
+        if (isMounted) setLoading(false);
+      };
     } else {
       setLoading(false);
+    }
+
+    return () => {
+      isMounted = false;
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [camera]);
+
+  // --- Luồng FLV Main Stream (Chỉ chạy khi phóng to) ---
+  useEffect(() => {
+    let isMounted = true;
+    if (camera && isMainStream) {
+      const urlToPlay = camera.RtspMainStream;
+      axios.post(`http://${window.location.hostname}:3000/api/stream/start`, {
+        cameraId: camera.Id,
+        rtspUrl: urlToPlay
+      })
+      .then(res => {
+        if (res.data.success && isMounted) {
+          setFlvUrl(res.data.flvUrl);
+        }
+      })
+      .catch(err => {
+        console.error('Lỗi khi lấy luồng stream:', err);
+      });
+    } else {
+      setFlvUrl(null); // Clear FLV khi thu nhỏ
     }
 
     return () => {
@@ -74,7 +80,6 @@ const VideoCell = ({ camera, isMainStream = false }) => {
           rtspUrl: camera.RtspMainStream
         }).catch(err => console.log('Lỗi khi dừng stream:', err));
       }
-      if (wsRef.current) wsRef.current.close();
     };
   }, [camera, isMainStream]);
 

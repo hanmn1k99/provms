@@ -454,9 +454,7 @@ function App() {
                       }}
                       draggable={false}
                     >
-                      {!isHidden && (
-                        <VideoCell camera={displayCameras[i]} isMainStream={isExpanded || gridSize === 1} />
-                      )}
+                      <VideoCell camera={displayCameras[i]} isMainStream={isExpanded || gridSize === 1} />
                     </div>
                   );
                 })}
