@@ -98,7 +98,7 @@ const FlvPlayer = ({ url, isMuted = true }) => {
           objectFit: 'fill',
           backgroundColor: 'transparent',
           pointerEvents: 'none',
-          visibility: videoReady ? 'visible' : 'hidden'
+          visibility: 'visible'
         }}
         muted={isMuted}
         controls={false}
