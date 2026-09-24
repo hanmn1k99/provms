@@ -355,14 +355,14 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
               <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>STT</th>
               <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>Tên Camera</th>
               <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>Địa chỉ IP / Kênh</th>
-              <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500 }}>Luồng (Main/Sub)</th>
+              
               <th style={{ padding: '15px', color: 'var(--text-muted)', fontWeight: 500, textAlign: 'right' }}>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {cameras.length === 0 ? (
               <tr>
-                <td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có camera nào trong hệ thống.</td>
+                <td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có camera nào trong hệ thống.</td>
               </tr>
             ) : (
               cameras.map((cam, index) => (
@@ -378,10 +378,7 @@ export default function CameraManagement({ cameras, onCamerasUpdated, showToast 
                   <td style={{ padding: '15px' }}>{index + 1}</td>
                   <td style={{ padding: '15px', fontWeight: 500 }}>{cam.Name}</td>
                   <td style={{ padding: '15px', color: 'var(--text-muted)' }}>{cam.IpAddress || 'N/A'}</td>
-                  <td style={{ padding: '15px' }}>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', whiteSpace: 'nowrap' }}>Main: rtsp://***</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', whiteSpace: 'nowrap' }}>Sub: rtsp://***</div>
-                    </td>
+                  
                   <td style={{ padding: '15px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <button className="btn btn-sm btn-ghost" onClick={() => handleOpenModal(cam)}>
